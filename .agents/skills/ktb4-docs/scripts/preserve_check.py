@@ -48,7 +48,7 @@ def norm(s: str) -> str:
     s = URL_RE.sub(" ", s)
     s = re.sub(r"<[^>]+>", " ", s)
     s = re.sub(r"^\s*#+\s*", "", s)
-    s = re.sub(r"^\s*(?:[-*+]|\d+(?:[.-]\d+)*\.?)\s+", "", s)
+    s = re.sub(r"^\s*(?:[-*+]|\d+(?:[.-]\d+)*[.)])\s+", "", s)
     s = re.sub(r"^\s*(?:[-*+]\s+)?\[[ xX]\]\s+", "", s)
     s = re.sub(r"[*_`>|]", " ", s)
     return re.sub(r"\s+", " ", s).strip()

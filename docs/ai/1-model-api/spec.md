@@ -13,7 +13,7 @@ limit_exempt: 원본 8개 엔드포인트의 필드표·에러표·규칙 문장
 
 책 커머스 “북적북적”의 AI 서버 API 명세다.
 
-## 1. 목록
+## 1. 엔드포인트 목록
 
 **BE → AI**. 백엔드가 호출한다.
 
@@ -43,93 +43,31 @@ limit_exempt: 원본 8개 엔드포인트의 필드표·에러표·규칙 문장
 - **`recommendations.candidates`는 BE tool이 아니다.** 쇼핑 에이전트가 “예산 안에서 N권” 같은 요청에서 후보를 고를 때 쓰는 AI 서버 안의 모듈이고, 홈 피드와 같은 점수 계산을 재사용한다. `tool_calls[]`에 기록은 되지만 BE로 나가는 호출은 아니다.
 - **인증**. AI→BE tool 호출은 방향 전용 서비스 토큰으로 인증하고, 누구 장바구니인지는 BE가 `user_id`로 tool마다 다시 확인한다. “본인만”, “본인 주문만”은 그 확인을 뜻한다.
 
-## 2. 공통 규약
+## 2. 용어
 
-### 2.1 규약
+> 이 문서에서만 쓰는 말과, 뜻을 좁혀 쓴 말만 모았다.
 
-<details><summary>규약 34개 (펼쳐서 보기)</summary>
+| 용어 | 뜻 |
+|---|---|
+| 턴(turn) | 사용자 메시지 한 번과 그에 대한 응답 한 번. 텍스트 턴 = 글, 이미지 턴 = 사진 |
+| spec(추천 조건) | 챗봇이 지금까지 파악한 추천 조건. 6개 키를 가진 객체다. 서버가 대화를 저장하지 않으므로 클라이언트가 매번 함께 보내고 돌려받는다 |
+| 공통 응답 형식(envelope) | 모든 응답을 같은 모양으로 감싼다. { message, data } |
+| 커서(cursor) | 목록에서 “여기까지 봤다”를 가리키는 표식. 서버가 만들어 주며 클라이언트는 내용을 해석하지 않고 그대로 되돌려 보낸다 |
+| 멱등 키(idempotency key) | 같은 요청이 재시도로 두 번 와도 한 번만 실행되게 하는 키 |
+| 축소 응답(degraded) | 일부 기능이 죽었을 때 에러를 내지 않고 기능을 줄여서라도 정상(200)으로 응답하는 것. X-Degraded 헤더로 알린다 |
+| 업스트림(upstream) | AI 서버가 호출하는 외부 모델 서비스(LLM, 임베딩) |
+| centroid(취향 벡터) | 사용자 취향을 대표하는 벡터. 좋아한 책, 태그, 기억 벡터의 가중평균이다 |
+| Pre-signed URL | 만료 시간이 있는 임시 접근 URL. 이미지 업로드에 쓴다 |
+| tool | AI가 백엔드에 요청하는 기능 단위(장바구니 담기 등). V2 쇼핑 에이전트 전용 |
+| 복제 테이블 | BE MySQL의 커머스 데이터를 AI PostgreSQL로 단방향 복제한 사본. 도서 카탈로그, 구매, 나의 도서관, 리뷰, 인기 집계. 원본의 주인은 BE이고 AI는 자기 사본을 읽기만 한다. 이름의 `v_` 접두사는 표기일 뿐 view가 아니다 |
+| 복제 지연(lag) | BE 원본의 변경이 AI 복제본에 도착하기까지의 시간. 지연 중에는 아직 도착하지 않은 행이 있을 수 있다. 오류가 아니고 축소 응답도 아니다 |
+| 신선도 예산 | 복제본이 원본보다 얼마나 늦어도 되는지 테이블마다 정한 값. ERD §3에 전체 목록이 있다 |
+| 이력 | 한 사용자의 구매, 나의 도서관 담기, 리뷰를 묶어 부르는 말. 피드 규칙 점수의 항 이름이기도 하다 |
+| 인기 | 도서 단위 집계값. 최근 판매 수와 리뷰 평점·건수 둘뿐이다. v_book_popularity 하나에서만 읽는다 |
 
-- **응답 envelope**: 모든 응답은 { “message”: <상태 문자열>, “data”: <내용 또는 null> }. /health만 예외
-- **시각 기준**: AI DB의 모든 시각 컬럼은 UTC `timestamptz`다. MySQL `DATETIME`은 시간대가 없으므로 복제 시 UTC로 해석해 적재한다. computed_at 비교가 이중 반영 차단의 유일한 장치라, 어긋나면 예외도 로그도 없이 **점수만 조용히 틀린다**
-- **필드 완결성**: 문서에 적힌 응답 필드는 항상 존재. 빈 값은 null, [], {}. 조건부 필드도 해당 없을 땐 null. 빈 결과(0건, 카드 없음, 인식 실패, 추출 없음)는 오류가 아니라 200
-- **오류 본문**: 성공과 같은 envelope에 data: null. 사유는 message의 문자열
-- **인증**: BE→AI는 서비스 토큰(Authorization: Bearer). 없거나 틀리면 401. /health는 예외이며 내부망에서만 접근
-- **메서드 선택**: 부수효과가 없는 읽기는 GET, 상태를 바꾸거나 요청 본문이 필요한 것은 POST. **④ 피드와 ⑧ /health가 GET이다.** ④는 읽기 전용이라 재시도가 자유롭고 멱등 키가 필요 없다
-- **메서드 선택, ①의 예외**: **① /search는 읽기지만 POST다.** 검색어가 사용자 자유 텍스트라, GET이면 쿼리스트링에 실려 access log·프록시 로그·APM 트레이스의 URI에 그대로 남는다. "대화 원문·검색어는 로그에 남기지 않는다"(인프라 설계)와 충돌해 본문으로 받는다. ④가 싣는 것은 ID와 enum뿐이라 같은 제약을 받지 않는다
-- **캐시**: 목록 응답은 Cache-Control: private, no-store. 개인화 결과이고 서버가 목록을 보관하지 않아 같은 URL이라도 호출마다 본문이 달라진다
-- **인증, V2 역방향**: AI→BE tool 호출도 같은 내부망 안이며 방향 전용 서비스 토큰(BE가 AI에 발급)으로 인증. 사용자 위임 토큰은 따로 쓰지 않음. 누구 장바구니인지는 BE가 tool 인자의 user_id로 다시 확인. 영향 범위가 장바구니 담기, 수정, 조회 수준이고 주문, 결제는 이 시스템 밖이라 이 정도로 둠
-- **상관관계 ID**: 모든 요청에 X-Request-Id 헤더 권장. 없으면 서버가 만들어 응답 헤더로 돌려줌. 로그를 이어 붙이는 키
-- **상한 초과 처리**: 개수 상한 초과는 최근 N개만 쓰고 200(recent_turns 20, conversation 40, liked_book_ids 50, memories 500). 항목 길이, 형식, 값 범위 위반과 size 50 초과는 400. 예외. context_cards(최대 10)는 초과 시 400(앞을 자르면 “N번” 해석이 어긋남)
-- **점수 필드**: 사용자에게 보이는 점수는 match_score(0–100)뿐. 인기 집계(판매, 평점, 리뷰 수)는 순위 계산 입력이며 그대로 노출하지 않는다
-- **점수 필드 예외**: 응답에 싣되 사용자에게 노출하지 않는 0–1 값: 취향 추출 confidence, 지시 표현 해석 confidence, 표지 후보 confidence
-- **축소 알림 헤더**: X-Degraded. 축소 응답일 때만 붙는다. keyword-only(검색), rule-only(피드). BE가 FE로 전달. **값은 이 둘뿐이며 복제 지연·행 부재에는 붙이지 않는다**
-- **축소 알림, 본문**: 챗봇 추천은 헤더 대신 본문 data.degraded로 알림. 스트리밍이면 200 헤더가 먼저 나가 헤더를 못 붙이기 때문
-- **재시도 헤더**: Retry-After. 429, 503에만
-- **대화 원문**: AI 서버는 저장하지 않고 로그에서도 가림. V1은 세션 안에서만, V2 스레드 보관은 BE 몫. **V2 대화 스레드는 복제 대상이 아니다**
-- **식별자**: book_id, user_id는 커머스의 정수 ID
-- **추천 이유의 보관**: 한 줄 이유와 긴 이유는 ③ 응답에서 한 번에 나오고 AI 서버는 저장하지 않는다. 상세 페이지에 쓸 긴 이유는 BE가 카드와 함께 보관한다. 이유 재생성 엔드포인트는 없다
-- **복제 방향**: DB 복제는 BE MySQL → AI PostgreSQL 한 방향이며 역방향 복제는 없다. AI가 만든 값이 BE에 저장되는 경로는 응답 본문과 tool 호출 둘뿐이고, 어느 쪽도 복제가 아니라 BE가 검증한 뒤 자기 테이블에 쓰는 것이다
-- **커머스 데이터의 주인**: 도서 카탈로그, 구매, 나의 도서관, 리뷰, 인기 집계의 원본 주인은 BE다. AI는 복제받은 사본을 조회만 하고 원본에는 쓰지 않으며, AI 서버에는 BE MySQL로 가는 연결이 없다. 요청 본문으로도 받지 않는다
-- **복제 계약면**: 복제 대상 다섯 테이블과 그 컬럼 집합. 컬럼명·타입·의미 변경과 삭제는 복제를 끊으므로 BE가 사전에 알린다. 대상 목록과 테이블별 허용 지연은 ERD §3에 있다
-- **복제 지연·행 부재·장애**: 지연과 행 부재는 오류가 아니다. 지연이면 낡은 값 그대로 200, 행이 없으면 그 항을 0점으로 두고 200이며 X-Degraded는 붙지 않는다. AI Postgres 장애는 전면 500이고, BE MySQL 장애는 500이 아니라 복제만 멈춘다
-- **카탈로그 조인**: 목록 응답의 book_id는 모두 도서 카탈로그에 있는 것이다. 카탈로그에서 사라진 도서는 조인에서 빠지므로 한 페이지가 size보다 짧을 수 있다. **짧은 페이지는 목록의 끝이 아니며** 끝은 next_cursor: null로만 판정한다
-- **탈퇴 사용자의 취향 프로필**: AI가 소유하는 사용자 데이터는 취향 프로필 하나다. 회원 탈퇴 시 이 행도 지워야 하며, AI는 탈퇴 사실을 스스로 알 수 없어 BE가 알려 줘야 한다. 방법은 미정(ERD §7)
-- **이력 이중 반영 방지**: 프로필 행의 computed_at(내부 값)은 그 프로필이 **반영한 이력 행들의 최대 시각**이다. ③·④는 그보다 나중의 이력만 채점 때 더한다. 계산 시각이 아니라 반영 시각이라 복제가 늦게 도착한 이력도 빠지지 않는다. 반영한 이력이 없으면 이력 전부를 더한다
-- **이미지 입력**: BE가 올리고 Pre-signed URL을 image_ref로 넘김. AI 서버는 이미지를 저장하지 않음
-- **멱등 키(idempotency key)**: /preferences/profile, /agent/act의 idempotency_key는 같은 규약. 같은 키, 같은 본문 = 저장 결과 200, 같은 키, 다른 본문 = 409. 키, 결과 매핑은 최소 24시간 보관
-- **멱등 키, tool 파생**: 한 턴에 쓰기 tool이 여러 번 나갈 수 있어, BE로 넘기는 tool별 키는 {idempotency_key}:{tool_call_index}(그 턴에서의 순번, 0부터). 턴 전체 재시도는 본문 키로, 개별 쓰기 중복은 파생 키로 막음
-- **커서, 방식**: 목록 API(검색, 피드)는 커서 방식. 요청 cursor / 응답 next_cursor, 마지막은 null
-- **커서, 불투명**: 서버가 서명한 문자열이라 클라이언트는 해석, 생성하지 않음. 위조, 변조는 410
-- **커서, 전달**: ① 검색은 요청 본문, ④ 피드는 쿼리 파라미터로 싣는다. 쿼리로 보낼 때는 `+`·`/`·`=`가 섞이므로 URL 인코딩한다
-- **커서, 만료**: 발급 후 30분. 만료됐거나 검색어, 필터, 정렬, 축소 모드가 다르면 410
-- **커서, 이어 붙이기**: 피드만, 커서 발급 이후 생긴 조회, 구매 이력은 제외 대상에서 뺌(스크롤이 밀리지 않게)
+## 3. 입력/출력 형식 명세
 
-</details>
-
-### 2.2 action 값 목록
-
-응답 buttons[].action에 올 수 있는 값의 전체 목록이다.
-
-| action | 쓰는 곳 | 동반 필드 | 의미 |
-|---|---|---|---|
-| library_add | 챗봇 (이미지 턴) | book_id | 사용자 서재에 추가 |
-| confirm_book | 챗봇 (이미지 턴, 인식 후보) | book_id | 인식 후보 중 이 책으로 확정 |
-| retake | 챗봇 (이미지 턴) |  | 이미지를 다시 받는다 |
-| confirm_reference | 쇼핑 에이전트 | book_id | 되물음, 비교에서 지목한 책 확정 |
-| confirm_selection | 쇼핑 에이전트 (골라 담기) | book_ids | 고른 조합을 장바구니에 담기 |
-| reselect | 쇼핑 에이전트 (골라 담기) |  | 다른 조합으로 다시 고르기 |
-| confirm_order | 쇼핑 에이전트 |  | 주문 요약을 확인하고 결제 절차로 넘긴다 |
-| open_book | 쇼핑 에이전트 | book_id | 해당 도서 조회 |
-| navigate | 챗봇, 쇼핑 에이전트 | target | 호출자가 정의한 이동 대상 식별자 |
-| dismiss | 챗봇, 쇼핑 에이전트 |  | 제안 닫기 |
-
-### 2.3 공통 에러 (모든 엔드포인트)
-
-| 상태 | message | 언제 |
-|---|---|---|
-| 400 | invalid_request | 입력 형식, 길이, 범위 위반 |
-| 401 | unauthorized | 서비스 토큰 없음, 불일치(/health 제외) |
-| 413 | payload_too_large | 요청 본문이 엔드포인트별 상한을 초과 |
-| 429 | rate_limited | 호출 한도 초과. Retry-After 헤더(대기 초)를 함께 보냄 |
-| 500 | internal_server_error | 서버 내부 오류 |
-
-### 2.4 스트리밍 전송 (SSE)
-
-챗봇 추천은 `Content-Type: text/event-stream`으로 응답할 수 있다. 이벤트는 셋뿐이다.
-
-| 이벤트 | data | 언제 |
-|---|---|---|
-| delta | {“text”: “…”} | reply의 글자 조각. 0회 이상 |
-| done | {message, data} envelope 전체. cards, spec, buttons, degraded 포함 | 정상 종료. 반드시 1회 |
-| error | 오류 envelope 그대로 ({message, data: null}) | 실패 종료 |
-
-- **V1은 `done`만 보낸다.**
-- `error` 이벤트가 따로 있는 이유는 **200 OK 헤더가 나간 뒤에는 상태 코드를 바꿀 수 없기 때문**이다. 상태 코드로 판정하던 클라이언트는 `error` 이벤트의 **`message`** 값을 같은 자리에 쓰면 된다(에러 식별자는 응답 envelope의 `message` 필드 하나로 통일한다. 별도 `code` 필드는 없다).
-- `EventSource`는 끊기면 재연결해 LLM을 다시 부르므로, `fetch` + `ReadableStream`으로 읽는다.
-
-## 3. 항목별 명세
-
-<details><summary><b>3.1 <code>POST /search</code> AI 검색</b></summary>
+<details><summary><b>① AI 검색: <code>POST /search</code></b></summary>
 
 > 키워드 검색과 벡터 검색을 각각 수행한 뒤 두 순위를 RRF로 합쳐 최종 순위를 만든다. LLM을 호출하지 않는다. 요청에 담긴 필터와 정렬만 적용하며, 검색어에서 조건을 추출하지 않는다.
 
@@ -179,7 +117,7 @@ limit_exempt: 원본 8개 엔드포인트의 필드표·에러표·규칙 문장
 
 </details>
 
-<details><summary><b>3.2 <code>POST /embeddings</code> 텍스트 임베딩</b></summary>
+<details><summary><b>② 텍스트 임베딩: <code>POST /embeddings</code></b></summary>
 
 > 텍스트를 벡터로 변환한다. 내부 전용이며 검색어와 도서 정보 모두 이 API를 쓴다. 한 번에 최대 256건이므로 대량 적재는 나눠서 호출한다.
 >
@@ -228,7 +166,7 @@ limit_exempt: 원본 8개 엔드포인트의 필드표·에러표·규칙 문장
 
 </details>
 
-<details><summary><b>3.3 <code>POST /recommendations/chat</code> 대화형 도서 추천</b></summary>
+<details><summary><b>③ 대화형 도서 추천: <code>POST /recommendations/chat</code></b></summary>
 
 > 사용자 메시지로 추천 조건(spec)을 갱신하고 그 조건으로 도서를 조회한다. 갱신된 조건, 추천 카드 최대 3장, 답변 문장을 함께 반환한다.
 >
@@ -295,7 +233,7 @@ LLM 장애면 1과 3을 건너뛰고 요청의 spec으로 2만 돌려 점수 상
 | cards[].reason_long | string? | 긴 추천 이유(도서 상세 페이지용) 2–4문장, 최대 300자. reason_short와 같은 LLM 호출에서 같은 근거로 만든다. 못 만들면 null(degraded일 때 포함) |
 | cards[].match_basis | object[] | 근거 항목 {label, detail}. 두 이유 문장과 같은 근거다 |
 | followup | string? | 텍스트 턴에서 카드가 없으면 되묻는 문장, 있으면 null. 이미지 턴은 항상 null(안내는 buttons로) |
-| buttons | object[] | 호출자가 제시할 후속 동작 목록. 없으면 []. action 값은 2.2 action 값 목록 참고 |
+| buttons | object[] | 호출자가 제시할 후속 동작 목록. 없으면 []. action 값은 5장 action 표 참고 |
 | recognition | object? | 이미지 턴에만 값이 있고 그 외 null |
 | recognition.recognized | bool | 카탈로그의 책 한 권으로 매칭했는지 |
 | recognition.book_id | int? | 매칭된 도서 ID. 못 하면 null. 나의 도서관 추가 여부는 BE가 이 값으로 판단 |
@@ -326,7 +264,7 @@ LLM 장애면 1과 3을 건너뛰고 요청의 spec으로 2만 돌려 점수 상
 
 </details>
 
-<details><summary><b>3.4 <code>GET /recommendations/feed</code> 개인화 추천 목록</b></summary>
+<details><summary><b>④ 개인화 추천 목록: <code>GET /recommendations/feed</code></b></summary>
 
 > 취향 프로필로 개인화 추천 목록을 만든다. 검색어를 받지 않는다. 점수는 규칙 기반 점수(작가, 카테고리, 태그, 이력, 인기)와 취향 벡터 유사도의 가중합이며 LLM을 호출하지 않는다.
 >
@@ -386,7 +324,7 @@ LLM 장애면 1과 3을 건너뛰고 요청의 spec으로 2만 돌려 점수 상
 
 </details>
 
-<details><summary><b>3.5 <code>POST /preferences/extractions</code> 취향 기억 추출 (V2)</b></summary>
+<details><summary><b>⑤ 취향 기억 추출 (V2): <code>POST /preferences/extractions</code></b></summary>
 
 > **야간 배치**가 그날 활동이 있었던(종료된) 대화 세션을 모아 **세션 단위로** 호출한다. 세션의 메시지 전체를 LLM에 넣어 취향 사실을 뽑고, 각 사실을 임베딩해 벡터와 함께 돌려준다. 저장은 BE가 한다(취향 테이블에 한 행씩). AI 서버는 입력도 결과도 저장하지 않으며 **AI DB에도 남기지 않는다.** 뽑은 기억이 AI로 되돌아오는 경로는 ⑥ 요청 본문 하나뿐이다.
 
@@ -429,7 +367,7 @@ LLM 장애면 1과 3을 건너뛰고 요청의 spec으로 2만 돌려 점수 상
 
 </details>
 
-<details><summary><b>3.6 <code>POST /preferences/profile</code> 취향 프로필 생성</b></summary>
+<details><summary><b>⑥ 취향 프로필 생성: <code>POST /preferences/profile</code></b></summary>
 
 > 온보딩 응답과 취향 기억으로 취향 프로필(취향 벡터와 태그 가중치)을 만들어 저장한다. 개인화를 쓰는 모든 API가 이 프로필을 참조한다.
 >
@@ -519,7 +457,7 @@ centroid = 가중평균( liked 책 문서벡터 ∪ memories(type:author) 작가
 
 </details>
 
-<details><summary><b>3.7 <code>POST /agent/act</code> 쇼핑 에이전트 (V2)</b></summary>
+<details><summary><b>⑦ 쇼핑 에이전트 (V2): <code>POST /agent/act</code></b></summary>
 
 > 대화 중에 나온 쇼핑 요청(“담아줘”, “빼줘”, “3만원 안에서 골라줘”, “재고 있어?”, “1번이랑 3번 뭐 달라”, “배송 언제?”)을 알아듣고 백엔드 기능(tool)을 대신 실행한다. **서버에 대화를 저장하지 않는다**. 대화 맥락은 요청에 담겨 온다. 주문 생성, 결제는 범위 밖이며 결제 화면으로의 이동만 안내한다.
 >
@@ -545,13 +483,13 @@ centroid = 가중평균( liked 책 문서벡터 ∪ memories(type:author) 작가
 |---|---|---|
 | reply | string | 답변 문장. 가격, 재고, 수량, 합계는 tool 실행 결과에서만 채운다 |
 | tool_calls | object[] | 실행한 tool과 결과. 없으면 []. 내부 후보 추천(recommendations.candidates)도 기록용으로 포함 |
-| tool_calls[].name | string | tool 이름(1장 tool 표) 또는 recommendations.candidates |
+| tool_calls[].name | string | tool 이름(위 표) 또는 recommendations.candidates |
 | tool_calls[].arguments | object | tool에 넘긴 인자. 권한, 재고는 BE가 다시 확인 |
 | tool_calls[].result | object | tool 실행 결과. 내부 후보 추천은 { count, candidates[]: {book_id, match_score} }. 나머지 형식은 예시이며 BE와 합의해 확정 |
 | tool_calls[].grounded | bool | false면 그 결과가 답변 내용을 뒷받침하지 못함. 판정 규칙은 아래 |
 | resolved_reference | object? | “이거, 1번”이 가리키는 책을 찾은 결과 { ref, book_ids, confidence }. confidence(0–1, 내부 판정용) 0.6 미만이면 되물음(tool_calls: []). 해석할 게 없으면 null |
 | selection | object? | “예산 안에서 N권”처럼 조건 걸고 골라 담을 때만 { goal, constraints, chosen[], total_price, alternatives_considered }. 아니면 null |
-| buttons | object[] | 호출자가 제시할 후속 동작 목록. 없으면 []. action 값은 2.2 action 값 목록 참고 |
+| buttons | object[] | 호출자가 제시할 후속 동작 목록. 없으면 []. action 값은 5장 action 표 참고 |
 
 **grounding 규칙**
 
@@ -588,7 +526,7 @@ centroid = 가중평균( liked 책 문서벡터 ∪ memories(type:author) 작가
 
 </details>
 
-<details><summary><b>3.8 <code>GET /health</code> 서버 상태 점검</b></summary>
+<details><summary><b>⑧ 서버 상태 점검: <code>GET /health</code></b></summary>
 
 > 배포, 모니터링용 상태 점검. 요청 본문과 인증이 없으며, 응답 envelope의 유일한 예외다. **인증이 없는 대신 네트워크 레벨에서 내부망에만 노출한다**. 커밋 해시, 구성 요소 상태가 밖으로 나가지 않도록.
 
@@ -620,29 +558,7 @@ centroid = 가중평균( liked 책 문서벡터 ∪ memories(type:author) 작가
 
 </details>
 
-## 4. 용어
-
-> 이 문서에서만 쓰는 말과, 뜻을 좁혀 쓴 말만 모았다.
-
-| 용어 | 뜻 |
-|---|---|
-| 턴(turn) | 사용자 메시지 한 번과 그에 대한 응답 한 번. 텍스트 턴 = 글, 이미지 턴 = 사진 |
-| spec(추천 조건) | 챗봇이 지금까지 파악한 추천 조건. 6개 키를 가진 객체다. 서버가 대화를 저장하지 않으므로 클라이언트가 매번 함께 보내고 돌려받는다 |
-| 공통 응답 형식(envelope) | 모든 응답을 같은 모양으로 감싼다. { message, data } |
-| 커서(cursor) | 목록에서 “여기까지 봤다”를 가리키는 표식. 서버가 만들어 주며 클라이언트는 내용을 해석하지 않고 그대로 되돌려 보낸다 |
-| 멱등 키(idempotency key) | 같은 요청이 재시도로 두 번 와도 한 번만 실행되게 하는 키 |
-| 축소 응답(degraded) | 일부 기능이 죽었을 때 에러를 내지 않고 기능을 줄여서라도 정상(200)으로 응답하는 것. X-Degraded 헤더로 알린다 |
-| 업스트림(upstream) | AI 서버가 호출하는 외부 모델 서비스(LLM, 임베딩) |
-| centroid(취향 벡터) | 사용자 취향을 대표하는 벡터. 좋아한 책, 태그, 기억 벡터의 가중평균이다 |
-| Pre-signed URL | 만료 시간이 있는 임시 접근 URL. 이미지 업로드에 쓴다 |
-| tool | AI가 백엔드에 요청하는 기능 단위(장바구니 담기 등). V2 쇼핑 에이전트 전용 |
-| 복제 테이블 | BE MySQL의 커머스 데이터를 AI PostgreSQL로 단방향 복제한 사본. 도서 카탈로그, 구매, 나의 도서관, 리뷰, 인기 집계. 원본의 주인은 BE이고 AI는 자기 사본을 읽기만 한다. 이름의 `v_` 접두사는 표기일 뿐 view가 아니다 |
-| 복제 지연(lag) | BE 원본의 변경이 AI 복제본에 도착하기까지의 시간. 지연 중에는 아직 도착하지 않은 행이 있을 수 있다. 오류가 아니고 축소 응답도 아니다 |
-| 신선도 예산 | 복제본이 원본보다 얼마나 늦어도 되는지 테이블마다 정한 값. ERD §3에 전체 목록이 있다 |
-| 이력 | 한 사용자의 구매, 나의 도서관 담기, 리뷰를 묶어 부르는 말. 피드 규칙 점수의 항 이름이기도 하다 |
-| 인기 | 도서 단위 집계값. 최근 판매 수와 리뷰 평점·건수 둘뿐이다. v_book_popularity 하나에서만 읽는다 |
-
-## 5. 연동 구조
+## 4. 서비스 구조에서의 역할과 연동
 
 **연동 구조 설명**
 
@@ -671,7 +587,7 @@ flowchart TB
     V -. 이력 .-> F5
     F5 -. 취향 프로필 .-> F2
     F5 -. 취향 프로필 .-> F3
-    F2 -->|카드 + reason_long| DET[도서 상세 페이지]
+    F2 -->|카드 + reason_long| DET["도서 상세 페이지<br/>AI 재호출 없음"]
     AG -. tool 호출 .-> COM[백엔드 tool 대상]
 ```
 
@@ -718,3 +634,88 @@ flowchart TB
 | 대화에서 쇼핑 의도 감지 (V2) | /agent/act |
 
 판매량 순위 목록은 개인화가 없어 이 API의 범위가 아니다. 도서 상세의 추천 이유는 추천을 거친 조회에만 존재한다 — 챗봇 카드로 들어온 경우에만 긴 이유가 있고, 검색이나 카테고리로 바로 들어온 상세 페이지에는 이유 영역이 없다.
+
+## 5. 공통 규약
+
+### 5.1 규약
+
+<details><summary>규약 34개 (펼쳐서 보기)</summary>
+
+- **응답 envelope**: 모든 응답은 { “message”: <상태 문자열>, “data”: <내용 또는 null> }. /health만 예외
+- **시각 기준**: AI DB의 모든 시각 컬럼은 UTC `timestamptz`다. MySQL `DATETIME`은 시간대가 없으므로 복제 시 UTC로 해석해 적재한다. computed_at 비교가 이중 반영 차단의 유일한 장치라, 어긋나면 예외도 로그도 없이 **점수만 조용히 틀린다**
+- **필드 완결성**: 문서에 적힌 응답 필드는 항상 존재. 빈 값은 null, [], {}. 조건부 필드도 해당 없을 땐 null. 빈 결과(0건, 카드 없음, 인식 실패, 추출 없음)는 오류가 아니라 200
+- **오류 본문**: 성공과 같은 envelope에 data: null. 사유는 message의 문자열
+- **인증**: BE→AI는 서비스 토큰(Authorization: Bearer). 없거나 틀리면 401. /health는 예외이며 내부망에서만 접근
+- **메서드 선택**: 부수효과가 없는 읽기는 GET, 상태를 바꾸거나 요청 본문이 필요한 것은 POST. **④ 피드와 ⑧ /health가 GET이다.** ④는 읽기 전용이라 재시도가 자유롭고 멱등 키가 필요 없다
+- **메서드 선택, ①의 예외**: **① /search는 읽기지만 POST다.** 검색어가 사용자 자유 텍스트라, GET이면 쿼리스트링에 실려 access log·프록시 로그·APM 트레이스의 URI에 그대로 남는다. "대화 원문·검색어는 로그에 남기지 않는다"(인프라 설계)와 충돌해 본문으로 받는다. ④가 싣는 것은 ID와 enum뿐이라 같은 제약을 받지 않는다
+- **캐시**: 목록 응답은 Cache-Control: private, no-store. 개인화 결과이고 서버가 목록을 보관하지 않아 같은 URL이라도 호출마다 본문이 달라진다
+- **인증, V2 역방향**: AI→BE tool 호출도 같은 내부망 안이며 방향 전용 서비스 토큰(BE가 AI에 발급)으로 인증. 사용자 위임 토큰은 따로 쓰지 않음. 누구 장바구니인지는 BE가 tool 인자의 user_id로 다시 확인. 영향 범위가 장바구니 담기, 수정, 조회 수준이고 주문, 결제는 이 시스템 밖이라 이 정도로 둠
+- **상관관계 ID**: 모든 요청에 X-Request-Id 헤더 권장. 없으면 서버가 만들어 응답 헤더로 돌려줌. 로그를 이어 붙이는 키
+- **상한 초과 처리**: 개수 상한 초과는 최근 N개만 쓰고 200(recent_turns 20, conversation 40, liked_book_ids 50, memories 500). 항목 길이, 형식, 값 범위 위반과 size 50 초과는 400. 예외. context_cards(최대 10)는 초과 시 400(앞을 자르면 “N번” 해석이 어긋남)
+- **점수 필드**: 사용자에게 보이는 점수는 match_score(0–100)뿐. 인기 집계(판매, 평점, 리뷰 수)는 순위 계산 입력이며 그대로 노출하지 않는다
+- **점수 필드 예외**: 응답에 싣되 사용자에게 노출하지 않는 0–1 값: 취향 추출 confidence, 지시 표현 해석 confidence, 표지 후보 confidence
+- **축소 알림 헤더**: X-Degraded. 축소 응답일 때만 붙는다. keyword-only(검색), rule-only(피드). BE가 FE로 전달. **값은 이 둘뿐이며 복제 지연·행 부재에는 붙이지 않는다**
+- **축소 알림, 본문**: 챗봇 추천은 헤더 대신 본문 data.degraded로 알림. 스트리밍이면 200 헤더가 먼저 나가 헤더를 못 붙이기 때문
+- **재시도 헤더**: Retry-After. 429, 503에만
+- **대화 원문**: AI 서버는 저장하지 않고 로그에서도 가림. V1은 세션 안에서만, V2 스레드 보관은 BE 몫. **V2 대화 스레드는 복제 대상이 아니다**
+- **식별자**: book_id, user_id는 커머스의 정수 ID
+- **추천 이유의 보관**: 한 줄 이유와 긴 이유는 ③ 응답에서 한 번에 나오고 AI 서버는 저장하지 않는다. 상세 페이지에 쓸 긴 이유는 BE가 카드와 함께 보관한다. 이유 재생성 엔드포인트는 없다
+- **복제 방향**: DB 복제는 BE MySQL → AI PostgreSQL 한 방향이며 역방향 복제는 없다. AI가 만든 값이 BE에 저장되는 경로는 응답 본문과 tool 호출 둘뿐이고, 어느 쪽도 복제가 아니라 BE가 검증한 뒤 자기 테이블에 쓰는 것이다
+- **커머스 데이터의 주인**: 도서 카탈로그, 구매, 나의 도서관, 리뷰, 인기 집계의 원본 주인은 BE다. AI는 복제받은 사본을 조회만 하고 원본에는 쓰지 않으며, AI 서버에는 BE MySQL로 가는 연결이 없다. 요청 본문으로도 받지 않는다
+- **복제 계약면**: 복제 대상 다섯 테이블과 그 컬럼 집합. 컬럼명·타입·의미 변경과 삭제는 복제를 끊으므로 BE가 사전에 알린다. 대상 목록과 테이블별 허용 지연은 ERD §3에 있다
+- **복제 지연·행 부재·장애**: 지연과 행 부재는 오류가 아니다. 지연이면 낡은 값 그대로 200, 행이 없으면 그 항을 0점으로 두고 200이며 X-Degraded는 붙지 않는다. AI Postgres 장애는 전면 500이고, BE MySQL 장애는 500이 아니라 복제만 멈춘다
+- **카탈로그 조인**: 목록 응답의 book_id는 모두 도서 카탈로그에 있는 것이다. 카탈로그에서 사라진 도서는 조인에서 빠지므로 한 페이지가 size보다 짧을 수 있다. **짧은 페이지는 목록의 끝이 아니며** 끝은 next_cursor: null로만 판정한다
+- **탈퇴 사용자의 취향 프로필**: AI가 소유하는 사용자 데이터는 취향 프로필 하나다. 회원 탈퇴 시 이 행도 지워야 하며, AI는 탈퇴 사실을 스스로 알 수 없어 BE가 알려 줘야 한다. 방법은 미정(ERD §7)
+- **이력 이중 반영 방지**: 프로필 행의 computed_at(내부 값)은 그 프로필이 **반영한 이력 행들의 최대 시각**이다. ③·④는 그보다 나중의 이력만 채점 때 더한다. 계산 시각이 아니라 반영 시각이라 복제가 늦게 도착한 이력도 빠지지 않는다. 반영한 이력이 없으면 이력 전부를 더한다
+- **이미지 입력**: BE가 올리고 Pre-signed URL을 image_ref로 넘김. AI 서버는 이미지를 저장하지 않음
+- **멱등 키(idempotency key)**: /preferences/profile, /agent/act의 idempotency_key는 같은 규약. 같은 키, 같은 본문 = 저장 결과 200, 같은 키, 다른 본문 = 409. 키, 결과 매핑은 최소 24시간 보관
+- **멱등 키, tool 파생**: 한 턴에 쓰기 tool이 여러 번 나갈 수 있어, BE로 넘기는 tool별 키는 {idempotency_key}:{tool_call_index}(그 턴에서의 순번, 0부터). 턴 전체 재시도는 본문 키로, 개별 쓰기 중복은 파생 키로 막음
+- **커서, 방식**: 목록 API(검색, 피드)는 커서 방식. 요청 cursor / 응답 next_cursor, 마지막은 null
+- **커서, 불투명**: 서버가 서명한 문자열이라 클라이언트는 해석, 생성하지 않음. 위조, 변조는 410
+- **커서, 전달**: ① 검색은 요청 본문, ④ 피드는 쿼리 파라미터로 싣는다. 쿼리로 보낼 때는 `+`·`/`·`=`가 섞이므로 URL 인코딩한다
+- **커서, 만료**: 발급 후 30분. 만료됐거나 검색어, 필터, 정렬, 축소 모드가 다르면 410
+- **커서, 이어 붙이기**: 피드만, 커서 발급 이후 생긴 조회, 구매 이력은 제외 대상에서 뺌(스크롤이 밀리지 않게)
+
+</details>
+
+### 5.2 action 값 목록
+
+응답 buttons[].action에 올 수 있는 값의 전체 목록이다.
+
+| action | 쓰는 곳 | 동반 필드 | 의미 |
+|---|---|---|---|
+| library_add | 챗봇 (이미지 턴) | book_id | 사용자 서재에 추가 |
+| confirm_book | 챗봇 (이미지 턴, 인식 후보) | book_id | 인식 후보 중 이 책으로 확정 |
+| retake | 챗봇 (이미지 턴) |  | 이미지를 다시 받는다 |
+| confirm_reference | 쇼핑 에이전트 | book_id | 되물음, 비교에서 지목한 책 확정 |
+| confirm_selection | 쇼핑 에이전트 (골라 담기) | book_ids | 고른 조합을 장바구니에 담기 |
+| reselect | 쇼핑 에이전트 (골라 담기) |  | 다른 조합으로 다시 고르기 |
+| confirm_order | 쇼핑 에이전트 |  | 주문 요약을 확인하고 결제 절차로 넘긴다 |
+| open_book | 쇼핑 에이전트 | book_id | 해당 도서 조회 |
+| navigate | 챗봇, 쇼핑 에이전트 | target | 호출자가 정의한 이동 대상 식별자 |
+| dismiss | 챗봇, 쇼핑 에이전트 |  | 제안 닫기 |
+
+### 5.3 공통 에러 (모든 엔드포인트)
+
+| 상태 | message | 언제 |
+|---|---|---|
+| 400 | invalid_request | 입력 형식, 길이, 범위 위반 |
+| 401 | unauthorized | 서비스 토큰 없음, 불일치(/health 제외) |
+| 413 | payload_too_large | 요청 본문이 엔드포인트별 상한을 초과 |
+| 429 | rate_limited | 호출 한도 초과. Retry-After 헤더(대기 초)를 함께 보냄 |
+| 500 | internal_server_error | 서버 내부 오류 |
+
+### 5.4 스트리밍 전송 (SSE)
+
+챗봇 추천은 `Content-Type: text/event-stream`으로 응답할 수 있다. 이벤트는 셋뿐이다.
+
+| 이벤트 | data | 언제 |
+|---|---|---|
+| delta | {“text”: “…”} | reply의 글자 조각. 0회 이상 |
+| done | {message, data} envelope 전체. cards, spec, buttons, degraded 포함 | 정상 종료. 반드시 1회 |
+| error | 오류 envelope 그대로 ({message, data: null}) | 실패 종료 |
+
+- **V1은 `done`만 보낸다.**
+- `error` 이벤트가 따로 있는 이유는 **200 OK 헤더가 나간 뒤에는 상태 코드를 바꿀 수 없기 때문**이다. 상태 코드로 판정하던 클라이언트는 `error` 이벤트의 **`message`** 값을 같은 자리에 쓰면 된다(에러 식별자는 응답 envelope의 `message` 필드 하나로 통일한다. 별도 `code` 필드는 없다).
+- `EventSource`는 끊기면 재연결해 LLM을 다시 부르므로, `fetch` + `ReadableStream`으로 읽는다.
+
