@@ -1,0 +1,38 @@
+name: docs-check
+
+on:
+  pull_request:
+    paths:
+      - "docs/**"
+      - "backup/**"
+      - ".agents/skills/ktb4-docs/**"
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: 기존 백업 수정·삭제 금지
+        run: |
+          changed=$(git -c core.quotepath=false diff --name-status "origin/${{ github.base_ref }}...HEAD" -- backup/ | grep -v '^A' || true)
+          if [ -n "$changed" ]; then
+            echo "$changed"
+            echo "::error::기존 백업 파일은 수정·삭제할 수 없습니다. 새 날짜 폴더로 백업하세요."
+            exit 1
+          fi
+
+      - name: 백업 무결성
+        run: python .agents/skills/ktb4-docs/scripts/verify_backup.py backup
+
+      - name: 원본 보존 검사
+        run: python .agents/skills/ktb4-docs/scripts/preserve_check.py --docs docs --backup-root backup
+
+      - name: 문서 규칙 검사
+        run: python .agents/skills/ktb4-docs/scripts/check_docs.py docs
