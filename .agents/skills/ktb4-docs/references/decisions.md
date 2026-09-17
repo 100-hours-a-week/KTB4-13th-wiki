@@ -16,6 +16,7 @@
 | 12 | API 명세 | 위키의 FS API 명세, AI API 명세 두 개가 기준 (Google Sheet 제외). 공통 형식(응답 `{message, data}`, 에러 표기)을 맞춘다 |
 | 13 | 설계·근거 | 설계와 선택 근거는 다른 파일, 같은 group |
 | 14 | 위키 반영 자동화 (09-17 추가) | `main`에 `docs/**` 머지되면 `.github/workflows/wiki-sync.yml`이 `wiki_export.py --sidebar --apply`를 자동 실행하고 위키에 직접 push. **사람이 위키에 push하는 단계 없앰.** 대신 PR 단계의 기존 CI(`docs-check.yml`: preserve_check·check_docs)가 이미 머지 전에 오류 0을 강제하므로, "위키에 반영되기 전 마지막 사람 확인"은 위키 push 시점이 아니라 **PR 리뷰 시점**으로 옮겨간 것. GitHub Wiki엔 PR 리뷰가 없어 push 자체엔 리뷰가 없다는 점을 감수하기로 함. `WIKI_DEPLOY_TOKEN` 시크릿(레포 write 권한 PAT) 설정 필요 — 문서 담당자가 GitHub 설정에서 직접 추가. (참고: `docs/convert-ai-1` PR에 있는 "옮김표 사전 승인 생략" 결정과 번호가 겹칠 수 있음 — 먼저 머지되는 쪽 기준으로 나중에 정리) |
+| 15 | 변환 승인 방식 (09-17 추가) | 절차가 무겁다는 피드백 → **변환 모드에서 옮김표 사전 승인 생략.** 요청 한 번에 변환·검사·PR까지 끝내고 결과를 한 번에 보고. 원문 보존 기준(요약 금지, preserve_check 0건)과 "충돌 기준 없을 때 사용자에게 묻기"는 그대로 유지 — 줄인 건 승인 횟수지 검사 기준이 아니다 |
 
 ## 파트별 결정
 
