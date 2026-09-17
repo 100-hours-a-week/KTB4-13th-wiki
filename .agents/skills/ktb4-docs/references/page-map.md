@@ -46,8 +46,8 @@
 | `표준화된-도구-통합-및-외부-API-활용-설계.md` | 표준화된 도구 통합 및 외부 API 활용 설계 | [wiki](https://github.com/100-hours-a-week/KTB4-13th-wiki/wiki/%ED%91%9C%EC%A4%80%ED%99%94%EB%90%9C-%EB%8F%84%EA%B5%AC-%ED%86%B5%ED%95%A9-%EB%B0%8F-%EC%99%B8%EB%B6%80-API-%ED%99%9C%EC%9A%A9-%EC%84%A4%EA%B3%84) | AI-6 도구 통합 설계 | ai-6 | 대기 | |
 | `서비스-인프라-확장성과-모니터링-설계.md` | 서비스 인프라 확장성과 모니터링 설계 | [wiki](https://github.com/100-hours-a-week/KTB4-13th-wiki/wiki/%EC%84%9C%EB%B9%84%EC%8A%A4-%EC%9D%B8%ED%94%84%EB%9D%BC-%ED%99%95%EC%9E%A5%EC%84%B1%EA%B3%BC-%EB%AA%A8%EB%8B%88%ED%84%B0%EB%A7%81-%EC%84%A4%EA%B3%84) | AI-7 인프라 모니터링 설계 | ai-7 | 대기 | |
 | `최종-통합-설계-및-회고.md` | 최종 통합 설계 및 회고 | [wiki](https://github.com/100-hours-a-week/KTB4-13th-wiki/wiki/%EC%B5%9C%EC%A2%85-%ED%86%B5%ED%95%A9-%EC%84%A4%EA%B3%84-%EB%B0%8F-%ED%9A%8C%EA%B3%A0) | AI-8 최종 통합 설계 | ai-8 | 대기 | |
-| `개발-워크플로.md` | 개발 워크플로 | [wiki](https://github.com/100-hours-a-week/KTB4-13th-wiki/wiki/%EA%B0%9C%EB%B0%9C-%EC%9B%8C%ED%81%AC%ED%94%8C%EB%A1%9C) | AI-9 개발 워크플로 가이드 | ai-9 | 대기 | **09-17 신규 발견, page-map에 없었음. 제목·문서종류는 제안 단계, 확정 아님.** 본문에 "AI 저장소 전용"이라 명시 → 사용자 확인으로 AI 그룹 편입. 로컬 세팅(AI-10)·팀 컨벤션(TEAM)과 상호 참조 |
-| `로컬‐개발‐환경‐세팅.md` | 로컬 개발 환경 세팅 | [wiki](https://github.com/100-hours-a-week/KTB4-13th-wiki/wiki/%EB%A1%9C%EC%BB%AC%E2%80%90%EA%B0%9C%EB%B0%9C%E2%80%90%ED%99%98%EA%B2%BD%E2%80%90%EC%84%B8%ED%8C%85) | AI-10 로컬 개발 환경 세팅 가이드 | ai-10 | 대기 | **09-17 신규 발견, page-map에 없었음. 제목·문서종류는 제안 단계, 확정 아님.** 본문에 "AI 서버를 로컬에서"라고 명시 → 사용자 확인으로 AI 그룹 편입. 파일명에 유니코드 하이픈 |
+| `개발-워크플로.md` | 개발 워크플로 | [wiki](https://github.com/100-hours-a-week/KTB4-13th-wiki/wiki/%EA%B0%9C%EB%B0%9C-%EC%9B%8C%ED%81%AC%ED%94%8C%EB%A1%9C) | AI-9 개발 워크플로 가이드 | ai-9 | 대기 | 09-17 신규 발견(첫 page-map에 누락). 사용자 확인으로 AI 그룹 편입, 제목 확정. 로컬 세팅(AI-10)·팀 컨벤션(TEAM)과 상호 참조 |
+| `로컬‐개발‐환경‐세팅.md` | 로컬 개발 환경 세팅 | [wiki](https://github.com/100-hours-a-week/KTB4-13th-wiki/wiki/%EB%A1%9C%EC%BB%AC%E2%80%90%EA%B0%9C%EB%B0%9C%E2%80%90%ED%99%98%EA%B2%BD%E2%80%90%EC%84%B8%ED%8C%85) | AI-10 로컬 개발 환경 세팅 가이드 | ai-10 | 대기 | 09-17 신규 발견(첫 page-map에 누락). 사용자 확인으로 AI 그룹 편입, 제목 확정. 파일명에 유니코드 하이픈 |
 
 ## 풀스택
 
@@ -65,7 +65,7 @@
 |---|---|---|---|---|---|---|
 | `Home.md` | Home | [wiki](https://github.com/100-hours-a-week/KTB4-13th-wiki/wiki/Home) | - (원본 유지) | - | 제외 | 사이드바만 새 페이지로 연결 |
 | `_Sidebar.md` | _Sidebar | [wiki](https://github.com/100-hours-a-week/KTB4-13th-wiki/wiki/_Sidebar) | 생성됨 | - | - | `wiki_export.py --sidebar` 가 생성, 원본은 백업 |
-| `_Footer.md` | _Footer | [wiki](https://github.com/100-hours-a-week/KTB4-13th-wiki/wiki/_Footer) | - | - | 제외 | **09-17 신규 발견, page-map에 없었음.** 위키 자동 표시 파일. `_Sidebar`와 동일하게 원본만 백업, 새 문서 없음 (Figma·프로젝트 보드 URL이 플레이스홀더로 비어 있음 — 채울지는 담당자 확인 필요) |
+| `_Footer.md` | _Footer | [wiki](https://github.com/100-hours-a-week/KTB4-13th-wiki/wiki/_Footer) | - | - | 제외 | 09-17 신규 발견(첫 page-map에 누락). `_Sidebar`와 동일하게 원본만 백업, 새 문서 없음. 사용자 확인으로 제외 확정 (Figma·프로젝트 보드 URL 플레이스홀더는 그대로 둠) |
 | `비즈니스-정책-위키.md` | 비즈니스 정책 위키 | [wiki](https://github.com/100-hours-a-week/KTB4-13th-wiki/wiki/%EB%B9%84%EC%A6%88%EB%8B%88%EC%8A%A4-%EC%A0%95%EC%B1%85-%EC%9C%84%ED%82%A4) | PM 비즈니스 정책 | pm-policy | 대기 | |
 | `Vision.md` | Vision | [wiki](https://github.com/100-hours-a-week/KTB4-13th-wiki/wiki/Vision) | PM 비전 | pm-vision | 대기 | |
 | `Roadmap.md` | Roadmap | [wiki](https://github.com/100-hours-a-week/KTB4-13th-wiki/wiki/Roadmap) | PM 로드맵 | pm-roadmap | 대기 | |
@@ -80,4 +80,4 @@
 ## 변환 순서
 
 1. cld-3 (테스트) → 2. ai-1~8 → 3. fs-1~3 → 4. cld-1, cld-2 → 5. 허브·기획 → 6. cld-4 (작성 끝난 뒤)
-7. ai-9, ai-10 (09-17 신규 발견, 이름·문서종류는 제안 단계 — 변환 착수 전 담당자 확인 필요)
+7. ai-9, ai-10 (09-17 신규 발견. 이름·소속 확정됨, ai-1~8 이후 진행)
