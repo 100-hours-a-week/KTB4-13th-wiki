@@ -58,6 +58,7 @@
 | `[1단계]-테이블-명세서.md` | [1단계] 테이블 명세서 | [wiki](https://github.com/100-hours-a-week/KTB4-13th-wiki/wiki/%5B1%EB%8B%A8%EA%B3%84%5D-%ED%85%8C%EC%9D%B4%EB%B8%94-%EB%AA%85%EC%84%B8%EC%84%9C) | FS-1 테이블 명세 | fs-1 | 대기 | |
 | `[2단계]-API-명세서.md` | [2단계] API 명세서 | [wiki](https://github.com/100-hours-a-week/KTB4-13th-wiki/wiki/%5B2%EB%8B%A8%EA%B3%84%5D-API-%EB%AA%85%EC%84%B8%EC%84%9C) | FS-2 API 명세 / 부록 | fs-2 | 대기 | AI API와 공통 형식 맞춤 → 형식 변경은 결정 로그 후 |
 | `[3단계]-기술-스택-정의서.md` | [3단계] 기술 스택 정의서 | [wiki](https://github.com/100-hours-a-week/KTB4-13th-wiki/wiki/%5B3%EB%8B%A8%EA%B3%84%5D-%EA%B8%B0%EC%88%A0-%EC%8A%A4%ED%83%9D-%EC%A0%95%EC%9D%98%EC%84%9C) | FS-3 기술 스택 정의 / 선택 근거 | fs-3 | 대기 | |
+| `비즈니스-정책-위키.md` | 비즈니스 정책 위키 | [wiki](https://github.com/100-hours-a-week/KTB4-13th-wiki/wiki/%EB%B9%84%EC%A6%88%EB%8B%88%EC%8A%A4-%EC%A0%95%EC%B1%85-%EC%9C%84%ED%82%A4) | FS-4 비즈니스 정책 | fs-4 | 대기 | 09-17 재분류: 원래 PM(기획·공통)에 있었으나, 실제 작성·관리 주체가 풀스택 파트라 사용자 확인으로 FS로 이동 |
 
 ## 기획·공통
 
@@ -66,7 +67,6 @@
 | `Home.md` | Home | [wiki](https://github.com/100-hours-a-week/KTB4-13th-wiki/wiki/Home) | - (원본 유지) | - | 제외 | 사이드바만 새 페이지로 연결 |
 | `_Sidebar.md` | _Sidebar | [wiki](https://github.com/100-hours-a-week/KTB4-13th-wiki/wiki/_Sidebar) | 생성됨 | - | - | `wiki_export.py --sidebar` 가 생성, 원본은 백업 |
 | `_Footer.md` | _Footer | [wiki](https://github.com/100-hours-a-week/KTB4-13th-wiki/wiki/_Footer) | - | - | 제외 | 09-17 신규 발견(첫 page-map에 누락). `_Sidebar`와 동일하게 원본만 백업, 새 문서 없음. 사용자 확인으로 제외 확정 (Figma·프로젝트 보드 URL 플레이스홀더는 그대로 둠) |
-| `비즈니스-정책-위키.md` | 비즈니스 정책 위키 | [wiki](https://github.com/100-hours-a-week/KTB4-13th-wiki/wiki/%EB%B9%84%EC%A6%88%EB%8B%88%EC%8A%A4-%EC%A0%95%EC%B1%85-%EC%9C%84%ED%82%A4) | PM 비즈니스 정책 | pm-policy | 대기 | |
 | `Vision.md` | Vision | [wiki](https://github.com/100-hours-a-week/KTB4-13th-wiki/wiki/Vision) | PM 비전 | pm-vision | 대기 | |
 | `Roadmap.md` | Roadmap | [wiki](https://github.com/100-hours-a-week/KTB4-13th-wiki/wiki/Roadmap) | PM 로드맵 | pm-roadmap | 대기 | |
 | `Product‐Backlog.md` | Product Backlog | [wiki](https://github.com/100-hours-a-week/KTB4-13th-wiki/wiki/Product%E2%80%90Backlog) | PM 프로덕트 백로그 | pm-backlog | 대기 | 파일명에 유니코드 하이픈 |
