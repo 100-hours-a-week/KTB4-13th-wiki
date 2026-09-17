@@ -1,0 +1,55 @@
+name: wiki-sync
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "docs/**"
+      - "backup/**"
+      - ".agents/skills/ktb4-docs/**"
+
+jobs:
+  sync:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: 원본 보존 · 문서 규칙 재확인
+        run: |
+          python .agents/skills/ktb4-docs/scripts/preserve_check.py --docs docs --backup-root backup
+          python .agents/skills/ktb4-docs/scripts/check_docs.py docs
+
+      - name: 위키 저장소 클론 (반영 전용)
+        env:
+          WIKI_TOKEN: ${{ secrets.WIKI_DEPLOY_TOKEN }}
+        run: |
+          if [ -z "$WIKI_TOKEN" ]; then
+            echo "::error::WIKI_DEPLOY_TOKEN 시크릿이 설정되지 않았습니다. 저장소 Settings > Secrets and variables > Actions 에서 추가하세요."
+            exit 1
+          fi
+          git clone "https://x-access-token:${WIKI_TOKEN}@github.com/100-hours-a-week/KTB4-13th-wiki.wiki.git" wiki-publish
+
+      - name: docs → 위키 반영 (새 페이지 + 사이드바)
+        run: |
+          python .agents/skills/ktb4-docs/scripts/wiki_export.py \
+            --docs docs --backup-root backup --wiki wiki-publish \
+            --sidebar --apply
+
+      - name: 위키에 커밋 & 푸시
+        working-directory: wiki-publish
+        run: |
+          git config user.name "ktb4-docs-bot"
+          git config user.email "actions@users.noreply.github.com"
+          git add -A
+          if git diff --cached --quiet; then
+            echo "변경된 위키 페이지 없음"
+          else
+            git commit -m "docs: 자동 위키 반영 ($(date -u +%Y-%m-%d))"
+            git push
+          fi

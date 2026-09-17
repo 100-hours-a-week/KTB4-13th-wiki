@@ -73,16 +73,19 @@ description: KTB4-13th-wiki 팀 문서 스킬. 레포 docs/ 에서 문서를 새
 
 `check_docs.py` 와 (변환 문서면) `preserve_check.py` 를 실행해 결과를 표로 보고한다. 기계로 못 잡는 것만 추가로 본다: 요약이 내용과 맞는지, 결정 로그 누락, 다른 파트 요구사항이 본문에 묻혀 있는지. 원본 보호 규칙 때문에 **점검 중 파일을 고치지 않는다.** 고칠지 먼저 묻는다.
 
-## 반영 모드 (문서 담당자만)
+## 반영 모드 (2026-09-17부터 자동)
 
+`main`에 `docs/**`가 머지되면 `.github/workflows/wiki-sync.yml`이 자동으로 `wiki_export.py --sidebar --apply`를 실행하고 위키에 커밋·푸시한다. **사람이 다시 실행할 필요 없다.** 이 워크플로에 문제가 있는지(시크릿 누락, 실행 실패)는 GitHub Actions 탭에서 확인한다.
+
+스크립트 자체의 안전장치(원본과 이름 겹침, 자기가 안 만든 페이지 덮어쓰기, 삭제 금지)는 그대로 있다 — 자동화된 건 "누가 명령어를 치느냐"이지 "무엇을 덮어써도 되느냐"가 아니다.
+
+수동으로 다시 돌리고 싶을 때(디버깅 등)는 예전 방식도 쓸 수 있다:
 ```bash
-# 원본 확인용과 별개로, 반영 전용 위키 clone을 쓴다
 git clone https://github.com/100-hours-a-week/KTB4-13th-wiki.wiki.git ../wiki-publish
 python scripts/wiki_export.py --docs docs --backup-root backup --wiki ../wiki-publish            # 계획만 출력
 python scripts/wiki_export.py --docs docs --backup-root backup --wiki ../wiki-publish --sidebar --apply
+git -C ../wiki-publish push  # 위 계획이 맞으면 직접
 ```
-
-스크립트는 원본과 이름이 겹치거나, 스크립트가 만든 적 없는 페이지를 덮어쓰려 하면 중단한다. 결과를 확인한 뒤 담당자가 직접 커밋·푸시한다. 푸시 후 사이드바 링크를 전부 열어본다.
 
 ## 추적 모드
 
