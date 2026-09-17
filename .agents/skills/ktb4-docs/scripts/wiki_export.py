@@ -36,15 +36,46 @@ def code_of(title):
     return (m.group(1), m.group(2) or "") if m else ("", "")
 
 
+def strip_prefix(title):
+    return re.sub(r"^[A-Z]+(?:-[A-Z]?\d+)?\s", "", title)
+
+
+def doc_order(x):
+    o = x["meta"].get("order")
+    try:
+        o = int(o) if o not in (None, "", []) else 99
+    except (TypeError, ValueError):
+        o = 99
+    t = x["meta"].get("type")
+    return (o, MAIN_TYPES.index(t) if t in MAIN_TYPES else 99, x["meta"].get("wiki", ""))
+
+
+def doc_label(x, members):
+    """그룹 안 링크 텍스트. type이 서로 다르면 type 이름(설계·선택 근거), 같은 type이 여럿(변환 그룹)이면 제목."""
+    types = [m["meta"].get("type") for m in members]
+    if types.count(x["meta"].get("type")) == 1:
+        return TYPE_LABEL.get(x["meta"].get("type"), "문서")
+    return strip_prefix(x["meta"]["wiki"])
+
+
 def render(d, by_path, groups, repo_url, branch, docs_root, warnings):
     m = d["meta"]
     parts = [f"{STATUSES.get(m.get('status'), '')} {m.get('status', '')}".strip(),
              f"담당 {m.get('owner', '-')}", f"수정 {m.get('updated', '-')}"]
-    pair = [x for x in groups.get(m.get("group"), []) if x is not d]
-    if pair:
-        links = " · ".join(f"[{TYPE_LABEL.get(x['meta'].get('type'), '문서')}]({wiki_slug(x['meta']['wiki'])})" for x in pair)
+    members = sorted(groups.get(m.get("group"), []), key=doc_order)
+    pair = [x for x in members if x is not d]
+    types = [x["meta"].get("type") for x in members]
+    if pair and len(set(types)) < len(types):
+        # 변환 그룹(상위 + 하위 페이지): 하위는 상위 링크만, 상위는 하위 개수만 (목록은 사이드바)
+        parent = members[0]
+        if d is parent:
+            parts.append(f"하위 문서 {len(pair)}개 (사이드바)")
+        else:
+            parts.append(f"상위 [{strip_prefix(parent['meta']['wiki'])}]({wiki_slug(parent['meta']['wiki'])})")
+    elif pair:
+        links = " · ".join(f"[{doc_label(x, members)}]({wiki_slug(x['meta']['wiki'])})" for x in pair)
         parts.append(f"짝 문서 {links}")
-    srcs = [s for x in groups.get(m.get("group"), []) for s in as_list(x["meta"].get("sources"))]
+    srcs = as_list(m.get("sources")) or [s for x in members for s in as_list(x["meta"].get("sources"))]
     if srcs and m.get("type") != "appendix":
         orig = " · ".join(f"[{Path(s).stem}]({ORIGINAL_URL}{quote(Path(s).stem)})" for s in dict.fromkeys(srcs))
         parts.append(f"원본 {orig}")
@@ -87,18 +118,25 @@ def sidebar(docs, repo_url, branch, backup_name):
                 members = [x for x in members if x["meta"].get("type") != "appendix"]
                 if not members:
                     continue
-                members.sort(key=lambda x: MAIN_TYPES.index(x["meta"].get("type")) if x["meta"].get("type") in MAIN_TYPES else 99)
+                members.sort(key=doc_order)
                 main = members[0]["meta"]["wiki"]
-                name = re.sub(r"^[A-Z]+(?:-[A-Z]?\d+)?\s", "", main)
-                for w in ("설계", "명세", "선택 근거", "허브", "정의"):
-                    if name.endswith(" " + w) and len(members) > 1:
-                        name = name[: -len(w) - 1]
+                name = strip_prefix(main)
                 prefix = f"{num} " if num and int(re.sub(r"\D", "", num) or 0) != 0 else ""
+                types = [x["meta"].get("type") for x in members]
                 if len(members) == 1:
                     lines.append(f"- [{prefix}{name}]({wiki_slug(main)})")
-                else:
+                elif len(set(types)) == len(types):
+                    # 새 문서 그룹(설계 · 선택 근거): 한 줄
+                    for w in ("설계", "명세", "선택 근거", "허브", "정의"):
+                        if name.endswith(" " + w):
+                            name = name[: -len(w) - 1]
                     links = " · ".join(f"[{TYPE_LABEL.get(x['meta'].get('type'), '문서')}]({wiki_slug(x['meta']['wiki'])})" for x in members)
                     lines.append(f"- {prefix}{name}: {links}")
+                else:
+                    # 변환 그룹(상위 페이지 + 하위 페이지): 대표 아래 중첩 목록
+                    lines.append(f"- {prefix}[{name}]({wiki_slug(main)})")
+                    for x in members[1:]:
+                        lines.append(f"  - [{strip_prefix(x['meta']['wiki'])}]({wiki_slug(x['meta']['wiki'])})")
         if lines:
             out += [f"**{label}**", *lines, ""]
     out.append("_이 사이드바는 `wiki_export.py --sidebar` 가 생성한다. 직접 수정하지 않는다._")

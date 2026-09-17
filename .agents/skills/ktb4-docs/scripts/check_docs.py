@@ -98,7 +98,10 @@ def check(docs_root: Path):
             if re.match(r"^# ", ln):
                 add("오류", d, no, "`#` 제목 사용 금지 (`##`부터)")
             if re.match(r"^#### ", ln):
-                add("오류", d, no, "`####` 이하 금지 (문서 분리 신호)")
+                if converted:
+                    add("경고", d, no, "`####` 이하 (변환 문서는 원본 계층 유지 — 나누지 않는다)")
+                else:
+                    add("오류", d, no, "`####` 이하 금지 (문서 분리 신호)")
             if re.match(r"^## ", ln):
                 sections += 1
             for pat in PLACEHOLDERS:
@@ -119,20 +122,29 @@ def check(docs_root: Path):
                     add("오류", d, no, f"깨진 링크: {target}")
             if s.startswith("|") and not re.match(r"^\|[\s:|-]+\|$", s):
                 cells = [c.strip() for c in s.strip("|").split("|")]
-                if len(cells) > 5:
+                if len(cells) > 5 and not converted:
                     add("경고", d, no, f"표 열 {len(cells)}개 (5개 이하)")
-                if not converted and any(len(c) > 80 for c in cells):
+                if any(len(c) > 60 and len(re.findall(r"[.!?](?:\s|$)", c)) >= 2 for c in cells):
+                    add("경고", d, no, "긴 셀에 문장이 두 개 이상 (첫 문장 + 각주로)")
+                elif not converted and any(len(c) > 80 for c in cells):
                     add("경고", d, no, "표 셀이 너무 김 (한 문장 이내)")
-            if not converted and re.search(r"(습니다|합니다)[.\s]*$", s):
-                add("경고", d, no, "새 문장은 \"~한다\"체")
+            if re.search(r"(습니다|합니다)[.\s]*$", s) and not s.startswith("|"):
+                add("경고", d, no, "\"~한다\"체로 (변환 문서도 어미 통일, 결정 #16)")
+            if s.startswith("~~~"):
+                add("경고", d, no, "코드 펜스는 ``` 로")
+            if s in ("---", "***") and no > start + 1:
+                add("경고", d, no, "구분선 제거 (제목이 구분한다)")
+            if "<br" in s:
+                add("경고", d, no, "셀 안 <br> 금지 (각주로)")
 
         if in_code:
             add("오류", d, start + len(lines), "코드 블록이 닫히지 않음")
         max_lines, max_sec = LIMITS.get(t, (None, None))
-        exempt = m.get("limit_exempt")
+        exempt = m.get("limit_exempt") or converted  # 변환 문서는 원본 분량 그대로라 경고만
         if max_lines and nonempty > max_lines:
             add("경고" if exempt else "오류", d, 1,
-                f"{nonempty}줄 > 상한 {max_lines}줄 → 부록으로 옮기기" + (f" (예외: {exempt})" if exempt else ""))
+                f"{nonempty}줄 > 상한 {max_lines}줄 → " + ("긴 블록을 제자리에서 접기" if converted else "부록으로 옮기기")
+                + (f" (예외: {exempt})" if exempt and not converted else ""))
         if max_sec and sections > max_sec:
             add("경고" if exempt else "오류", d, 1, f"## 섹션 {sections}개 > 상한 {max_sec}개")
         if not re.search(r"^\*\*요약\*\*", body, re.M):
