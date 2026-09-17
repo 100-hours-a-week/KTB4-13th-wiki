@@ -38,7 +38,7 @@
 | 원본 파일 | 원본 제목 | 위키 URL | 새 문서 (wiki) | group | 상태 | 메모 |
 |---|---|---|---|---|---|---|
 | `AI-Wiki.md` | AI Wiki | [wiki](https://github.com/100-hours-a-week/KTB4-13th-wiki/wiki/AI-Wiki) | AI-0 허브 | ai-0 | 대기 | |
-| `모델-API-설계.md` | 모델 API 설계 | [wiki](https://github.com/100-hours-a-week/KTB4-13th-wiki/wiki/%EB%AA%A8%EB%8D%B8-API-%EC%84%A4%EA%B3%84) | AI-1 모델 API 명세 / 부록 | ai-1 | 변환됨(확인 대기) | 예시는 부록. ERD 참조는 `ERD (작성 예정)`. 09-17 변환 완료 → `docs/ai/1-model-api/`. preserve_check 잔여 3건은 목차·5장 참조 등 구조 변경으로 인한 것(파트 확인 요청 중) |
+| `모델-API-설계.md` | 모델 API 설계 | [wiki](https://github.com/100-hours-a-week/KTB4-13th-wiki/wiki/%EB%AA%A8%EB%8D%B8-API-%EC%84%A4%EA%B3%84) | AI-1 모델 API 명세 / 부록 | ai-1 | 변환됨(확인 대기) | 예시는 부록. ERD 참조는 `ERD (작성 예정)`. 09-17 변환 완료 → `docs/ai/1-model-api/`. 09-17 spec.md 챕터 순서를 원본과 같게 재정렬(엔드포인트 목록→용어→입력/출력 형식 명세→서비스 구조→공통 규약), "5장 action 표"·"위 표" 참조 복원. preserve_check 오류 0건 |
 | `모델-추론-성능-최적화.md` | 모델 추론 성능 최적화 | [wiki](https://github.com/100-hours-a-week/KTB4-13th-wiki/wiki/%EB%AA%A8%EB%8D%B8-%EC%B6%94%EB%A1%A0-%EC%84%B1%EB%8A%A5-%EC%B5%9C%EC%A0%81%ED%99%94) | AI-2 추론 최적화 설계 | ai-2 | 대기 | |
 | `서비스-아키텍처-모듈화.md` | 서비스 아키텍처 모듈화 | [wiki](https://github.com/100-hours-a-week/KTB4-13th-wiki/wiki/%EC%84%9C%EB%B9%84%EC%8A%A4-%EC%95%84%ED%82%A4%ED%85%8D%EC%B2%98-%EB%AA%A8%EB%93%88%ED%99%94) | AI-3 아키텍처 모듈화 설계 | ai-3 | 대기 | |
 | `멀티스텝-AI-파이프라인-구현-검토.md` | 멀티스텝 AI 파이프라인 구현 검토 | [wiki](https://github.com/100-hours-a-week/KTB4-13th-wiki/wiki/%EB%A9%80%ED%8B%B0%EC%8A%A4%ED%85%9D-AI-%ED%8C%8C%EC%9D%B4%ED%94%84%EB%9D%BC%EC%9D%B8-%EA%B5%AC%ED%98%84-%EA%B2%80%ED%86%A0) | AI-4 멀티스텝 파이프라인 설계 | ai-4 | 대기 | |
