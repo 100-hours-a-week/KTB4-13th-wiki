@@ -127,7 +127,7 @@ limit_exempt: 원본 8개 엔드포인트의 필드표·에러표·규칙 문장
 
 ## 3. 항목별 명세
 
-### 3.1 `POST /search` AI 검색
+<details><summary><b>3.1 <code>POST /search</code> AI 검색</b></summary>
 
 > 키워드 검색과 벡터 검색을 각각 수행한 뒤 두 순위를 RRF로 합쳐 최종 순위를 만든다. LLM을 호출하지 않는다. 요청에 담긴 필터와 정렬만 적용하며, 검색어에서 조건을 추출하지 않는다.
 
@@ -175,7 +175,9 @@ limit_exempt: 원본 8개 엔드포인트의 필드표·에러표·규칙 문장
 
 > 예시: [부록 - 3.1](appendix.md#31-예시-ai-검색-post-search)
 
-### 3.2 `POST /embeddings` 텍스트 임베딩
+</details>
+
+<details><summary><b>3.2 <code>POST /embeddings</code> 텍스트 임베딩</b></summary>
 
 > 텍스트를 벡터로 변환한다. 내부 전용이며 검색어와 도서 정보 모두 이 API를 쓴다. 한 번에 최대 256건이므로 대량 적재는 나눠서 호출한다.
 >
@@ -222,7 +224,9 @@ limit_exempt: 원본 8개 엔드포인트의 필드표·에러표·규칙 문장
 
 > 예시: [부록 - 3.2](appendix.md#32-예시-텍스트-임베딩-post-embeddings)
 
-### 3.3 `POST /recommendations/chat` 대화형 도서 추천
+</details>
+
+<details><summary><b>3.3 <code>POST /recommendations/chat</code> 대화형 도서 추천</b></summary>
 
 > 사용자 메시지로 추천 조건(spec)을 갱신하고 그 조건으로 도서를 조회한다. 갱신된 조건, 추천 카드 최대 3장, 답변 문장을 함께 반환한다.
 >
@@ -318,7 +322,9 @@ LLM 장애면 1과 3을 건너뛰고 요청의 spec으로 2만 돌려 점수 상
 
 > 예시: [부록 - 3.3](appendix.md#33-예시-대화형-도서-추천-post-recommendationschat)
 
-### 3.4 `GET /recommendations/feed` 개인화 추천 목록
+</details>
+
+<details><summary><b>3.4 <code>GET /recommendations/feed</code> 개인화 추천 목록</b></summary>
 
 > 취향 프로필로 개인화 추천 목록을 만든다. 검색어를 받지 않는다. 점수는 규칙 기반 점수(작가, 카테고리, 태그, 이력, 인기)와 취향 벡터 유사도의 가중합이며 LLM을 호출하지 않는다.
 >
@@ -376,7 +382,9 @@ LLM 장애면 1과 3을 건너뛰고 요청의 spec으로 2만 돌려 점수 상
 
 > 예시: [부록 - 3.4](appendix.md#34-예시-개인화-추천-목록-get-recommendationsfeed)
 
-### 3.5 `POST /preferences/extractions` 취향 기억 추출 (V2)
+</details>
+
+<details><summary><b>3.5 <code>POST /preferences/extractions</code> 취향 기억 추출 (V2)</b></summary>
 
 > **야간 배치**가 그날 활동이 있었던(종료된) 대화 세션을 모아 **세션 단위로** 호출한다. 세션의 메시지 전체를 LLM에 넣어 취향 사실을 뽑고, 각 사실을 임베딩해 벡터와 함께 돌려준다. 저장은 BE가 한다(취향 테이블에 한 행씩). AI 서버는 입력도 결과도 저장하지 않으며 **AI DB에도 남기지 않는다.** 뽑은 기억이 AI로 되돌아오는 경로는 ⑥ 요청 본문 하나뿐이다.
 
@@ -417,7 +425,9 @@ LLM 장애면 1과 3을 건너뛰고 요청의 spec으로 2만 돌려 점수 상
 
 > 예시: [부록 - 3.5](appendix.md#35-예시-취향-기억-추출-post-preferencesextractions)
 
-### 3.6 `POST /preferences/profile` 취향 프로필 생성
+</details>
+
+<details><summary><b>3.6 <code>POST /preferences/profile</code> 취향 프로필 생성</b></summary>
 
 > 온보딩 응답과 취향 기억으로 취향 프로필(취향 벡터와 태그 가중치)을 만들어 저장한다. 개인화를 쓰는 모든 API가 이 프로필을 참조한다.
 >
@@ -505,7 +515,9 @@ centroid = 가중평균( liked 책 문서벡터 ∪ memories(type:author) 작가
 
 > 예시: [부록 - 3.6](appendix.md#36-예시-취향-프로필-생성-post-preferencesprofile)
 
-### 3.7 `POST /agent/act` 쇼핑 에이전트 (V2)
+</details>
+
+<details><summary><b>3.7 <code>POST /agent/act</code> 쇼핑 에이전트 (V2)</b></summary>
 
 > 대화 중에 나온 쇼핑 요청(“담아줘”, “빼줘”, “3만원 안에서 골라줘”, “재고 있어?”, “1번이랑 3번 뭐 달라”, “배송 언제?”)을 알아듣고 백엔드 기능(tool)을 대신 실행한다. **서버에 대화를 저장하지 않는다**. 대화 맥락은 요청에 담겨 온다. 주문 생성, 결제는 범위 밖이며 결제 화면으로의 이동만 안내한다.
 >
@@ -572,7 +584,9 @@ centroid = 가중평균( liked 책 문서벡터 ∪ memories(type:author) 작가
 
 > 예시: [부록 - 3.7](appendix.md#37-예시-쇼핑-에이전트-post-agentact)
 
-### 3.8 `GET /health` 서버 상태 점검
+</details>
+
+<details><summary><b>3.8 <code>GET /health</code> 서버 상태 점검</b></summary>
 
 > 배포, 모니터링용 상태 점검. 요청 본문과 인증이 없으며, 응답 envelope의 유일한 예외다. **인증이 없는 대신 네트워크 레벨에서 내부망에만 노출한다**. 커밋 해시, 구성 요소 상태가 밖으로 나가지 않도록.
 
@@ -601,6 +615,8 @@ centroid = 가중평균( liked 책 문서벡터 ∪ memories(type:author) 작가
 인증 예외 엔드포인트라 401은 발생하지 않으며, 요청 본문이 없어 400도 해당 없다.
 
 > 예시: [부록 - 3.8](appendix.md#38-예시-서버-상태-점검-get-health)
+
+</details>
 
 ## 4. 용어
 
@@ -633,29 +649,43 @@ centroid = 가중평균( liked 책 문서벡터 ∪ memories(type:author) 작가
 ```mermaid
 flowchart TB
     U[사용자] --> FE[프론트엔드]
-    FE --> BE[백엔드: 회원, 카탈로그, 장바구니, 주문, 결제]
+    FE --> BE[백엔드]
     subgraph AI[AI 서버]
-        F5["취향이 쌓인다<br/>⑥ /preferences/profile: 온보딩 완료 · 기억 변경 시<br/>(V2) ⑤ /preferences/extractions: 대화에서 취향 추출"]
-        F1["책을 찾는다<br/>① /search: 키워드 + 의미 유사도, LLM 없음<br/>0건이면 'AI 추천으로 가볼까요?' 배너 신호"]
-        F2["말로 추천받는다<br/>③ /recommendations/chat: 조건 해석 → 후보 검색<br/>→ 카드 3장 (순위, 매칭 점수)<br/>+ 한 줄 이유와 긴 이유를 한 번에"]
-        F3["홈에서 받아본다<br/>④ /recommendations/feed: 취향 순 목록, LLM 없음"]
-        AG["(V2) 대화로 장바구니를 다룬다<br/>⑦ /agent/act"]
+        F5[취향이 쌓인다]
+        F1[책을 찾는다]
+        F2[말로 추천받는다]
+        F3[홈에서 받아본다]
+        AG["쇼핑 에이전트 (V2)"]
     end
     BE -->|온보딩 완료 · 기억 변경| F5
     BE -->|검색어| F1
     BE -->|사용자 메시지| F2
     BE -->|홈 진입| F3
     BE -->|쇼핑 요청| AG
-    BE ==>|"단방향 복제 · MySQL → PostgreSQL"| V[("커머스 복제 테이블 · AI DB 안<br/>도서 카탈로그 · 구매 · 나의 도서관<br/>리뷰 · 인기 집계<br/>(원본은 BE 소유, 역방향 복제 없음)")]
+    BE ==>|단방향 복제| V[(커머스 복제 테이블)]
     V -. 인기 .-> F1
     V -. 이력 · 인기 .-> F2
     V -. 이력 · 인기 .-> F3
     V -. 이력 .-> F5
     F5 -. 취향 프로필 .-> F2
     F5 -. 취향 프로필 .-> F3
-    F2 -->|카드 + reason_long| DET["도서 상세 페이지<br/>BE가 보관한 긴 이유를 그대로 표시<br/>(AI 재호출 없음)"]
-    AG -. "tool: 담기, 주문 요약, 재고, 도서 메타<br/>(V1에는 없는 유일한 역방향)" .-> COM["백엔드: 장바구니, 주문, 카탈로그"]
+    F2 -->|카드 + reason_long| DET[도서 상세 페이지]
+    AG -. tool 호출 .-> COM[백엔드 tool 대상]
 ```
+
+| 노드·화살표 | 원문 |
+|---|---|
+| 백엔드 (BE) | 회원, 카탈로그, 장바구니, 주문, 결제 |
+| 취향이 쌓인다 (F5) | ⑥ /preferences/profile: 온보딩 완료 · 기억 변경 시 · (V2) ⑤ /preferences/extractions: 대화에서 취향 추출 |
+| 책을 찾는다 (F1) | ① /search: 키워드 + 의미 유사도, LLM 없음 · 0건이면 'AI 추천으로 가볼까요?' 배너 신호 |
+| 말로 추천받는다 (F2) | ③ /recommendations/chat: 조건 해석 → 후보 검색 → 카드 3장 (순위, 매칭 점수) + 한 줄 이유와 긴 이유를 한 번에 |
+| 홈에서 받아본다 (F3) | ④ /recommendations/feed: 취향 순 목록, LLM 없음 |
+| 쇼핑 에이전트 (AG) | (V2) 대화로 장바구니를 다룬다 · ⑦ /agent/act |
+| 단방향 복제 화살표 (BE→V) | 단방향 복제 · MySQL → PostgreSQL |
+| 커머스 복제 테이블 (V) | AI DB 안. 도서 카탈로그 · 구매 · 나의 도서관 · 리뷰 · 인기 집계 (원본은 BE 소유, 역방향 복제 없음) |
+| 도서 상세 페이지 (DET) | BE가 보관한 긴 이유를 그대로 표시 (AI 재호출 없음) |
+| tool 호출 화살표 (AG→COM) | tool: 담기, 주문 요약, 재고, 도서 메타 (V1에는 없는 유일한 역방향) |
+| 백엔드 tool 대상 (COM) | 백엔드: 장바구니, 주문, 카탈로그 |
 
 **핵심 설계 원칙**
 
