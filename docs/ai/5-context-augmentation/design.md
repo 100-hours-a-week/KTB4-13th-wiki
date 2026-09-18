@@ -10,6 +10,8 @@ sources:
 ---
 **요약** 추천 근거 문장을 passage 검색으로 보강하는 텍스트 RAG와, 표지 사진을 검색어로 바꿔 도서 DB를 찾는 Visual RAG의 데이터 소스·구현·검증 계획을 정리한다.
 
+> `book_passage` 원문조각 RAG와 `preset_vectors` 얕은 RAG는 재검토 후 폐기했다(2026-09-15). `reason_long`은 `v_books.description`만 근거로 ③ 카드 생성 한 호출에서 생성한다. 아래 §2-A·§4-A의 `book_passage` 서술은 폐기 이력 참고용이며, Visual RAG(§2-B·§4-B)는 이 결정과 무관하다.
+
 ## 1. 전체 데이터 흐름도
 
 ### 2-0. 우리 API에서 RAG를 사용하는 부분 (기능 정의 ↔ 검색 증강 매핑)
@@ -212,6 +214,8 @@ flowchart TD
 
 ### 4-A. 텍스트 RAG
 
+`book_passage` 원문조각 RAG는 **폐기**한다 — 고정된 카드 3장의 이유 문구 생성에 벡터 인프라를 쓸 근거가 약하다는 과설계 판단(2026-09-15). 실제 구현은 `reason_long`을 `v_books.description`만으로 생성하며, 아래 인덱싱·검색·grounding 검증 절은 폐기 이력 참고용으로 남긴다.
+
 #### 인덱싱
 
 ```python
@@ -343,6 +347,8 @@ def enforce_citations(card_gen: LlmCard, passages: list[Passage]) -> ReasonSet:
 - `cited_passage_ids` 는 **감사 로그에만** 남긴다 — 계약 필드도, 저장 테이블도 없다(캐시 삭제됨).
 
 #### spec 델타 추출의 얕은 RAG
+
+**미채택** (벡터 검색 → enum 검증으로 대체, 2026-09-14). 표준 태그·카테고리는 ONBOARD-003/004가 정한 몇십 개짜리 고정 목록이라 벡터 유사도로 찾는 문제가 아니라 목록에 있는 값인지 가리는 문제다. 아래 코드는 **미채택**된 원안이며, 실제 구현은 표준 태그 목록을 프롬프트에 그대로 넣고 스키마 검증(422)으로 대체한다.
 
 ```python
 def normalize_free_terms(message: str) -> list[str]:
@@ -478,7 +484,7 @@ VLM 폴백 프롬프트 (입력 포맷) — **"무슨 책인지" 를 묻지 않�
 
 ### 5-D. 재학습 주기 — 요약
 
-- **passage 재색인**: 이벤트 기반(소개문·리뷰 변경 시 해당 책만).
+- ~~passage 재색인~~: 이벤트 기반(소개문·리뷰 변경 시 해당 책만). **2026-09-15 book_passage 폐기로 더 이상 해당 없음.**
 - **임베딩 파인튜닝 / 전량 재적재**: 분기 단위, shadow 인덱스로 무중단, bench recall 게이트가 배포 조건. 파인튜닝은 model 식별자 도입(ERD §7) 뒤에만 한다.
 - **택소노미 벡터(계층구조)**: 온디맨드(값 개정 시).
 - **reason few-shot 풀**: 주간.
