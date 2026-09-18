@@ -2,7 +2,7 @@
 wiki: AI-1 모델 API 명세
 type: spec
 group: ai-1
-owner: 미정
+owner: 김세훈
 status: 작성중
 updated: 2026-09-18
 sources:
