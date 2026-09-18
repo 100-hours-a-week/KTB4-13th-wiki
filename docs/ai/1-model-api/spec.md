@@ -223,8 +223,8 @@ limit_exempt: 원본 8개 엔드포인트의 필드표·에러표·규칙 문장
   "message": "embed_success",
   "data": {
     "vectors": [[0.0123, -0.0456, "…"]],
-    "dim": 384,
-    "model": "multilingual-e5-small"
+    "dim": 1024,
+    "model": "bge-m3-2026q3"
   }
 }
 ```
@@ -233,7 +233,7 @@ limit_exempt: 원본 8개 엔드포인트의 필드표·에러표·규칙 문장
 |---|---|---|
 | vectors | float[][] | 입력과 같은 순서의 벡터 |
 | dim | int | 벡터 길이. 호출자가 쓰는 인덱스 차원과 다르면 저장하지 않는다 |
-| model | string | 어떤 모델로 만들었는지 기록용. 이 값으로 모델을 고르지는 않는다 (multilingual-e5-small) |
+| model | string | 어떤 모델로 만들었는지 기록용. 이 값으로 모델을 고르지는 않는다 (bge-m3-2026q3) |
 
 **에러**
 
@@ -631,7 +631,7 @@ GET /recommendations/feed?user_id=123&surface=recommend_more&sort=match
         "value": "이별 후 위로되는 잔잔한 소설을 찾음",
         "confidence": 0.82,
         "vector": [0.01, -0.04, "…"],
-        "dim": 384,
+        "dim": 1024,
         "source_conversation_id": "cv_20260903_a1"
       }
     ],
@@ -697,13 +697,13 @@ GET /recommendations/feed?user_id=123&surface=recommend_more&sort=match
       "type": "author",
       "value": "김영하의 문장을 좋아함",
       "vector": [0.02, -0.01, "…"],
-      "dim": 384
+      "dim": 1024
     },
     {
       "type": "mood",
       "value": "이별 후 위로되는 잔잔한 소설을 찾음",
       "vector": [0.01, -0.04, "…"],
-      "dim": 384
+      "dim": 1024
     }
   ]
 }

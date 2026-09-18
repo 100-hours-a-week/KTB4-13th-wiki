@@ -14,7 +14,7 @@ sources:
 
 ```mermaid
 flowchart TB
-    EMB["② /embeddings — multilingual-e5-small (dim 384)"]
+    EMB["② /embeddings — bge-m3-2026q3 (dim 1024)"]
     V[("커머스 복제 테이블 · AI Postgres 안")]
 
     subgraph UP["상류 — 취향 형성 (파이프라인 D)"]
@@ -53,7 +53,7 @@ flowchart TB
 
 | 노드 | 설명 |
 |---|---|
-| ② /embeddings — multilingual-e5-small (dim 384) | 모든 벡터의 단일 좌표계 |
+| ② /embeddings — bge-m3-2026q3 (dim 1024) | 모든 벡터의 단일 좌표계 |
 | 커머스 복제 테이블 · AI Postgres 안 | v_books · v_user_purchases · v_user_library · v_user_reviews · v_book_popularity · (원본은 BE MySQL · 단방향 복제 · 역방향 없음) |
 | ⑤ /preferences/extractions (V2) | 야간배치: 대화→취향사실 LLM추출→임베딩 |
 | ⑥ /preferences/profile (V1) | 온보딩·기억변경 트리거 · 벡터 가중평균 집계 (LLM·임베딩 재호출 없음) |
@@ -82,7 +82,7 @@ flowchart LR
 
 | 노드 | 설명 |
 |---|---|
-| ② /embeddings 호출 | multilingual-e5-small, purpose:query |
+| ② /embeddings 호출 | bge-m3-2026q3, purpose:query |
 | 규칙 스코어링 | sort=popular면 v_book_popularity 반영 |
 | results: [], fallback 배너 신호 | 'AI 추천에게 물어볼까요?' |
 
@@ -231,7 +231,7 @@ flowchart TD
 |---|---|
 | 활동 있던(종료된) 대화 세션 | 세션 단위 호출 |
 | LLM: 세션 전체에서 취향 사실 추출 | type/value, confidence 0.5 미만은 반환 안 함 |
-| 각 사실 임베딩 | multilingual-e5-small |
+| 각 사실 임베딩 | bge-m3-2026q3 |
 | BE가 취향 테이블에 한 행씩 저장 | (source_conversation_id로 재처리 시 교체) |
 | 트리거: 온보딩 완료 직후 · 취향 기억 변경 시 | (구매·리뷰가 늘었다고 부르지 않음) |
 | 입력: onboarding + memories[] | (memories는 이미 vector 포함) |
@@ -388,7 +388,7 @@ v3.1까지 독립 파이프라인이던 **'추천 이유 상세'(`/books/{bookId
 
 | 구성요소 | 선택 | 선택 이유 | 기대 효과 |
 |---|---|---|---|
-| 텍스트 임베딩 | `multilingual-e5-small`(dim 384) | API 계약으로 고정. | 인덱스·프로필·기억 벡터가 전부 호환 |
+| 텍스트 임베딩 | `bge-m3-2026q3`(dim 1024) | API 계약으로 고정. | 인덱스·프로필·기억 벡터가 전부 호환 |
 | (별도 트랙) e5-small | 벤치 결과 기준 후보 | 추론 최적화 실험에서 하이브리드 recall·지연·비용 우위 확인 | 계약과 분리된 트랙. |
 | 검색 결합 | RRF | 스케일 다른 두 랭킹(BM25·벡터)을 정규화 없이 합치는 표준 기법 | ① 검색과 ③ 후보검색이 같은 로직 재사용 |
 | 벡터 저장소 | AI 전용 PostgreSQL + pgvector (HNSW) | BE가 MySQL이라 DB 공유 불가(구 "Postgres 공유" 안 무효). 도서 임베딩·취향 프로필·멱등 기록을 한 Postgres에 둠 → 전용 벡터DB 불필요 | AI 쪽 데이터스토어 1개. 대신 BE→AI 단방향 복제 파이프라인이 필요 |
@@ -432,7 +432,7 @@ v3.1까지 독립 파이프라인이던 **'추천 이유 상세'(`/books/{bookId
 ```python
 def hybrid_candidates(text_query: str, filters: dict, size: int) -> list[Book]:
     kw_hits = bm25_search(text_query, filters)
-    query_vec = call_embeddings_api([text_query], purpose="query")[0]  # multilingual-e5-small
+    query_vec = call_embeddings_api([text_query], purpose="query")[0]  # bge-m3-2026q3
     vec_hits = pgvector_search(query_vec, filters)
     return reciprocal_rank_fusion(kw_hits, vec_hits, k=60)[:size]
 
