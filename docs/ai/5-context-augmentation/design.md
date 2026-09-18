@@ -57,7 +57,7 @@ flowchart TB
 
 | 노드 | 설명 |
 |---|---|
-| ② POST /embeddings | multilingual-e5-small · dim 384 · 모든 축의 공통 좌표계 (도서·passage·centroid·preset) |
+| ② POST /embeddings | bge-m3-2026q3 · dim 1024 · 모든 축의 공통 좌표계 (도서·passage·centroid·preset) |
 | ① POST /search | BM25(pg_trgm/tsvector) + pgvector + RRF · 결과 0건 → ③ 전환 신호 |
 | ④ GET /recommendations/feed | 취향 centroid 유사도 + 규칙 점수 · ※ passage 증강 없음 · 이유 문구 없음 (즉시성) |
 | ③ spec 델타 추출 | preset_vectors 얕은 RAG · 자유어 → 표준 태그 (422 감소) |
@@ -110,7 +110,7 @@ flowchart TD
 |---|---|
 | 국중도 SEOJI 원본 | BOOK_INTRODUCTION·BOOK_TB·BOOK_SUMMARY (HTML) |
 | 청크 분할 | 문단 / 목차항목 단위 |
-| ② /embeddings | multilingual-e5-small (dim 384) |
+| ② /embeddings | bge-m3-2026q3 (dim 1024) |
 | book_passage | (AI PostgreSQL + pgvector — book_embeddings 옆) · book_id · passage_type · text · vector · source_updated_at |
 | 태그·카테고리 택소노미 | (ONBOARD-003 / 004 값) |
 | preset_vectors | tag_label · vector |
@@ -236,12 +236,12 @@ def index_passages(book_id: int, seoji: dict, reviews: list[Review] | None):
     ])
 ```
 
-- **임베딩 = ② `/embeddings` (`multilingual-e5-small`, dim 384) 재사용.**
+- **임베딩 = ② `/embeddings` (`bge-m3-2026q3`, dim 1024) 재사용.**
     도서 문서 벡터·취향 centroid·passage 벡터가 같은 좌표계여야 `spec.semantic` 하나로 셋 다 검색 가능. 별도 모델 금지.
     `purpose` 는 명세 enum(`query`/`document`)만 있으므로 passage도 `document` 로 색인.
 
 - **저장소**: `book_passage` 는 **AI PostgreSQL**에 `book_embeddings` 와 나란히.
-    `vector(384)` 컬럼 + HNSW 인덱스. BM25용 `tsvector`/`pg_trgm` 도 같은 테이블/DB.
+    `vector(1024)` 컬럼 + HNSW 인덱스. BM25용 `tsvector`/`pg_trgm` 도 같은 테이블/DB.
 
 - **규모**: passage 수 ≈ 도서 수 × 8~15 → 5만 종이면 40~75만 행.
     E2 실측(전수 스캔 N=20만 p95 7.5ms) 근거로 ANN이면 여유.
