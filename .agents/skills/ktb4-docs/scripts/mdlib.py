@@ -58,6 +58,8 @@ def load_docs(docs_root: Path):
     for p in sorted(docs_root.rglob("*.md")):
         if p.name.lower() == "readme.md":
             continue
+        if "inbox" in p.relative_to(docs_root).parts:
+            continue
         text = p.read_text(encoding="utf-8")
         meta, body, start = parse_doc(text)
         docs.append({"path": p, "meta": meta, "body": body, "start": start})

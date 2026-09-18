@@ -3,6 +3,8 @@ name: sync-docs-to-ktb4-13th-ai
 # docs/** 가 main 에 머지되면 KTB4-13th-AI 레포의 docs/wiki/ 에 반영용 PR 을 자동 생성한다.
 # KTB4-13th-AI 는 docs/ 루트에 design/, trouble/, 개발-로그.md 를 이미 쓰고 있어서
 # 그 파일들과 섞이지 않도록 docs/wiki/ 하위 폴더로만 반영한다 (rsync --delete 범위도 이 폴더로 한정).
+# docs/inbox/ 는 KTB4-13th-AI 에서 sync-docs-to-wiki.yml 로 들어온 사본이라 제외한다
+# (그대로 되돌려보내면 AI 레포 안에 자기 문서의 사본이 반복 생성된다).
 on:
   push:
     branches: [main]
@@ -29,7 +31,7 @@ jobs:
         run: |
           TARGET_DIR="target-ktb4-13th-ai/docs/wiki"
           mkdir -p "$TARGET_DIR"
-          rsync -a --delete source-wiki/docs/ "$TARGET_DIR/"
+          rsync -a --delete --exclude 'inbox/' source-wiki/docs/ "$TARGET_DIR/"
 
       - name: 반영 PR 생성
         uses: peter-evans/create-pull-request@v6
