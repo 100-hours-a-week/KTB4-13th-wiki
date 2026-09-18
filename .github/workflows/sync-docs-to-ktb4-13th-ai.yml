@@ -1,0 +1,47 @@
+name: sync-docs-to-ktb4-13th-ai
+
+# docs/** 가 main 에 머지되면 KTB4-13th-AI 레포의 docs/wiki/ 에 반영용 PR 을 자동 생성한다.
+# KTB4-13th-AI 는 docs/ 루트에 design/, trouble/, 개발-로그.md 를 이미 쓰고 있어서
+# 그 파일들과 섞이지 않도록 docs/wiki/ 하위 폴더로만 반영한다 (rsync --delete 범위도 이 폴더로 한정).
+on:
+  push:
+    branches: [main]
+    paths:
+      - "docs/**"
+
+jobs:
+  sync:
+    runs-on: ubuntu-latest
+    steps:
+      - name: KTB4-13th-wiki 체크아웃 (docs 원본)
+        uses: actions/checkout@v4
+        with:
+          path: source-wiki
+
+      - name: KTB4-13th-AI 체크아웃 (반영 대상)
+        uses: actions/checkout@v4
+        with:
+          repository: 100-hours-a-week/KTB4-13th-AI
+          token: ${{ secrets.KTB4_13TH_AI_PAT }}
+          path: target-ktb4-13th-ai
+
+      - name: docs 복사 (docs/wiki/ 하위로만)
+        run: |
+          TARGET_DIR="target-ktb4-13th-ai/docs/wiki"
+          mkdir -p "$TARGET_DIR"
+          rsync -a --delete source-wiki/docs/ "$TARGET_DIR/"
+
+      - name: 반영 PR 생성
+        uses: peter-evans/create-pull-request@v6
+        with:
+          token: ${{ secrets.KTB4_13TH_AI_PAT }}
+          path: target-ktb4-13th-ai
+          commit-message: "docs: KTB4-13th-wiki 문서 동기화 (${{ github.sha }})"
+          branch: sync/ktb4-13th-wiki-docs
+          delete-branch: true
+          title: "docs: KTB4-13th-wiki 문서 반영"
+          body: |
+            KTB4-13th-wiki 레포의 `docs/**` 변경 사항을 `docs/wiki/`에 자동 반영한 PR입니다.
+            원본 커밋: 100-hours-a-week/KTB4-13th-wiki@${{ github.sha }}
+
+            자동 생성 - 병합 전 리뷰해 주세요.
