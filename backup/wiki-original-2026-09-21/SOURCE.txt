@@ -1,0 +1,5 @@
+원본: https://github.com/100-hours-a-week/KTB4-13th-wiki.wiki.git
+커밋: a62430a63cfdbfb9941d52d47cb1a4cff1d785ed
+백업일: 2026-09-21
+파일 수: 72
+이 폴더는 수정하지 않는다. 원본이 바뀌면 새 날짜 폴더로 다시 백업한다.
