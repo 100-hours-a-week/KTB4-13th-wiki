@@ -22,7 +22,7 @@ V1에서는 App EC2의 Nginx가 외부 요청을 받는 유일한 진입점입�
 Nginx
   ↓
 Backend
-```text
+```
 
 Nginx와 Backend가 같은 EC2에 있으므로 EC2 장애, Nginx 재시작, 배포 오류가 로그인·검색·리뷰·장바구니·주문·결제 전체의 중단으로 이어집니다. Backend를 여러 대로 늘려도 요청을 나누고 비정상 서버를 제외할 진입점이 없습니다.
 
@@ -36,7 +36,7 @@ V1의 Peak는 0.18 RPS였지만 V2의 평상시 Peak는 625 RPS입니다. 평상
   ↓ 별도 진입점
   ├─ AZ A · Nginx · Backend
   └─ AZ C · Nginx · Backend
-```text
+```
 
 이 구성에서는 다음 항목을 직접 관리해야 합니다.
 
@@ -56,7 +56,7 @@ ALB는 외부 요청을 받아 여러 AZ의 App Target으로 분산하고, Healt
 ALB
   ├─ AZ A · App EC2 · Backend Task
   └─ AZ C · App EC2 · Backend Task
-```text
+```
 
 북적북적의 요청은 검색 결과 확인, 도서 상세·리뷰 조회, 장바구니와 주문·결제로 이어집니다. 이 흐름에서 특정 Target이 장애 상태인데도 요청이 전달되면 사용자는 다음 화면으로 이동하지 못하거나 결제 결과를 다시 확인해야 합니다. ALB가 비정상 Target을 요청 경로에서 제외하면 사용자의 다음 요청을 정상 Target으로 전달할 수 있어, 단일 서버 장애가 전체 구매 흐름의 중단으로 확대되는 것을 줄일 수 있습니다.
 
@@ -79,7 +79,7 @@ Frontend는 S3와 CloudFront에서 제공하고 Backend는 컨테이너로 실�
 ALB
   ↓
 Backend Task
-```text
+```
 
 ALB와 Nginx를 함께 두면 Reverse Proxy 계층과 설정 관리 대상이 늘어납니다. 따라서 다음 기능을 실제로 사용하는지 확인한 뒤, 필요하지 않으면 Nginx를 제거합니다.
 
@@ -102,7 +102,7 @@ App 진입점이 중단되면 정적 Frontend는 제공할 수 있어도 로그�
 분당 기대 매출
 = 150,000,000원 ÷ (30일 × 24시간 × 60분)
 = 약 3,472원/분
-```text
+```
 
 실제 장애 손실은 장애 중 구매하지 못한 사용자, 결제 재시도 실패와 복구 후 이탈까지 포함하므로 단순 분당 매출보다 커질 수 있습니다. 따라서 V2에서는 ALB의 추가 비용을 부담하고, 서로 다른 AZ의 Backend Target으로 요청을 분산하며 비정상 Target을 자동 제외하는 구성을 선택합니다. Nginx는 고유 기능이 없다는 확인 후 제거합니다.
 
@@ -113,7 +113,7 @@ App 진입점이 중단되면 정적 Frontend는 제공할 수 있어도 로그�
 ALB
   ├─ AZ A · ECS on EC2 · Backend Task
   └─ AZ C · ECS on EC2 · Backend Task
-```text
+```
 
 - ALB는 최소 2개 AZ에 연결합니다.
 - Backend Task는 서로 다른 AZ에 배치합니다.
