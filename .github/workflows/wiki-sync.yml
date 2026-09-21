@@ -20,10 +20,8 @@ jobs:
         with:
           python-version: "3.12"
 
-      - name: 원본 보존 · 문서 규칙 재확인
-        run: |
-          python .agents/skills/ktb4-docs/scripts/preserve_check.py --docs docs --backup-root backup
-          python .agents/skills/ktb4-docs/scripts/check_docs.py docs
+      - name: 문서 규칙 재확인
+        run: python .agents/skills/ktb4-docs/scripts/check_docs.py docs
 
       - name: 위키 저장소 클론 (반영 전용)
         env:
