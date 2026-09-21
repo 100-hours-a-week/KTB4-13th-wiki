@@ -30,5 +30,5 @@ V2의 사용자 흐름과 요청량을 바탕으로 장기적인 사용자 및 �
 AWS·GCP·Azure의 확장 기능, 비용과 마이그레이션 지원을 비교하고, 기존 운영 구조와 이전 비용을 고려하여 AWS를 유지합니다.
 
 - [1-1. 현재 서비스의 성장 상황](growth.md)
-  - [북적북적 V2 예상 매출](../revenue.md)
+  - [북적북적 V2 예상 매출](https://github.com/100-hours-a-week/KTB4-13th-wiki/wiki/%EB%B6%81%EC%A0%81%EB%B6%81%EC%A0%81-V2-%EC%98%88%EC%83%81-%EB%A7%A4%EC%B6%9C)
 - [1-2. 기존 인프라 한계](infra-limits.md)
