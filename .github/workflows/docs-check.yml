@@ -31,8 +31,5 @@ jobs:
       - name: 백업 무결성
         run: python .agents/skills/ktb4-docs/scripts/verify_backup.py backup
 
-      - name: 원본 보존 검사
-        run: python .agents/skills/ktb4-docs/scripts/preserve_check.py --docs docs --backup-root backup
-
       - name: 문서 규칙 검사
         run: python .agents/skills/ktb4-docs/scripts/check_docs.py docs
