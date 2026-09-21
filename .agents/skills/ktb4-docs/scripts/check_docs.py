@@ -69,6 +69,7 @@ def check(docs_root: Path):
 
         lines = body.split("\n")
         in_code = False
+        fence_run = 3
         nonempty = 0
         sections = 0
         in_comment = False
@@ -84,12 +85,18 @@ def check(docs_root: Path):
                 continue
             if s.startswith("<!--") and s.endswith("-->"):
                 continue
-            if s.startswith("```"):
-                if not in_code and s == "```":
-                    add("오류", d, no, "코드 블록 언어 지정 없음")
-                in_code = not in_code
-                if s:
-                    nonempty += 1
+            fm = re.match(r"^(`{3,})(.*)$", s)
+            if fm:
+                run, info = len(fm.group(1)), fm.group(2).strip()
+                if not in_code:
+                    if not info:
+                        add("오류", d, no, "코드 블록 언어 지정 없음")
+                    in_code, fence_run = True, run
+                elif run >= fence_run:
+                    if info:
+                        add("오류", d, no, f"닫는 코드 펜스에 `{info}` 가 붙음 — 닫는 줄은 ``` 만 (안 닫혀서 뒤 내용이 모두 깨진다)")
+                    in_code = False
+                nonempty += 1
                 continue
             if s:
                 nonempty += 1
