@@ -164,6 +164,10 @@ def main():
         print(f"[중단] {wiki} 는 위키 git clone 이 아닙니다.")
         return 1
     originals = {p.relative_to(bdir).as_posix() for p in bdir.rglob("*") if p.is_file()}
+    # 백업 시점에 이미 이 스크립트가 발행해 둔 페이지는 원본이 아니다 (백업 안 매니페스트 기준)
+    bmanifest = bdir / MANIFEST
+    if bmanifest.exists():
+        originals -= set(json.loads(bmanifest.read_text(encoding="utf-8")))
     mpath = wiki / MANIFEST
     generated = set(json.loads(mpath.read_text(encoding="utf-8"))) if mpath.exists() else set()
 

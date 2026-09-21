@@ -75,7 +75,7 @@ description: KTB4-13th-wiki 팀 문서 스킬. 레포 docs/ 에서 문서를 새
 
 ## 점검 모드
 
-`check_docs.py` 와 (변환 PR이면 — 변환 뒤 정상 수정은 원본과 달라 오류가 되므로 제외, 결정 #17) `preserve_check.py` 를 실행해 결과를 표로 보고한다. 기계로 못 잡는 것만 추가로 본다: 요약이 내용과 맞는지, 결정 로그 누락, 다른 파트 요구사항이 본문에 묻혀 있는지. 원본 보호 규칙 때문에 **점검 중 파일을 고치지 않는다.** 고칠지 먼저 묻는다.
+`check_docs.py` 와 (변환 PR이면 — 변환 뒤 정상 수정은 원본과 달라 오류가 되므로 제외, 결정 #17) `preserve_check.py` 를 실행해 결과를 표로 보고한다. `check_docs` 의 **경고는 줄 단위로 모두 확인하고**, 정보(변환 문서라 예상되는 `####`·분량)는 건수만 보고한다. 기계로 못 잡는 것만 추가로 본다: 요약이 내용과 맞는지, 결정 로그 누락, 다른 파트 요구사항이 본문에 묻혀 있는지. 원본 보호 규칙 때문에 **점검 중 파일을 고치지 않는다.** 고칠지 먼저 묻는다.
 
 ## 반영 모드 (2026-09-17부터 자동)
 
@@ -110,6 +110,6 @@ bash scripts/wiki_changed_since_backup.sh backup/wiki-original-YYYY-MM-DD
 | `scripts/backup_wiki.sh` | 위키 원본을 `backup/wiki-original-날짜/` 로 복사, 해시 목록 생성 |
 | `scripts/verify_backup.py` | 백업이 바뀌지 않았는지 해시로 확인 |
 | `scripts/preserve_check.py` | 원본 대비 제목 트리·누락·숫자·뜻 바뀜 검사 (문체 어미 차이는 무시) |
-| `scripts/check_docs.py` | 이름·frontmatter·분량·제목·문체·코드 블록·링크·자리표시자 검사 (변환 문서는 `####`·분량이 경고) |
+| `scripts/check_docs.py` | 이름·frontmatter·분량·제목·문체·코드 블록·링크·자리표시자 검사. 변환 문서의 `####`·분량 초과는 예상된 것이라 **정보**로 건수만 묶어 출력한다 (`-v` 로 줄 단위 전체). 오류·경고는 줄 단위 |
 | `scripts/wiki_export.py` | docs → 위키 새 페이지·사이드바 생성 (덮어쓰기 방지) |
 | `scripts/wiki_changed_since_backup.sh` | 백업 이후 원본 위키 변경 목록 |
