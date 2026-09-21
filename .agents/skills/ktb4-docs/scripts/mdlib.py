@@ -49,7 +49,7 @@ def parse_doc(text: str):
             if not isinstance(meta.get(key), list):
                 meta[key] = []
             meta[key].append(_clean(m2.group(1)))
-    start = fm.count("\n") + 3
+    start = fm.count("\n") + 4  # 1행 `---` + frontmatter(줄 수 = 개행+1) + 닫는 `---` 다음 줄
     return meta, rest, start
 
 
