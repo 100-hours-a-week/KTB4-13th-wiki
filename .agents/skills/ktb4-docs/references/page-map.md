@@ -11,7 +11,7 @@
 
 | 원본 파일 | 원본 제목 | 위키 URL | 새 문서 (wiki) | group | 상태 | 메모 |
 |---|---|---|---|---|---|---|
-| `3단계.-CD(지속적-배포)-파이프라인-설계.md` | 3단계. CD(지속적 배포) 파이프라인 설계 | [wiki](https://github.com/100-hours-a-week/KTB4-13th-wiki/wiki/3%EB%8B%A8%EA%B3%84.-CD%28%EC%A7%80%EC%86%8D%EC%A0%81-%EB%B0%B0%ED%8F%AC%29-%ED%8C%8C%EC%9D%B4%ED%94%84%EB%9D%BC%EC%9D%B8-%EC%84%A4%EA%B3%84) | CLD-3 CD 파이프라인 설계 (`overview.md`, order 0) | cld-3 | 대기 | **첫 변환 대상.** 충돌 시 이 페이지 값이 기준 |
+| `3단계.-CD(지속적-배포)-파이프라인-설계.md` | 3단계. CD(지속적 배포) 파이프라인 설계 | [wiki](https://github.com/100-hours-a-week/KTB4-13th-wiki/wiki/3%EB%8B%A8%EA%B3%84.-CD%28%EC%A7%80%EC%86%8D%EC%A0%81-%EB%B0%B0%ED%8F%AC%29-%ED%8C%8C%EC%9D%B4%ED%94%84%EB%9D%BC%EC%9D%B8-%EC%84%A4%EA%B3%84) | CLD-3 CD 파이프라인 설계 (`overview.md`, order 0) | cld-3 | 변환됨(확인 대기) | 09-21 변환 → `docs/cld/3-cd-pipeline/overview.md`. 충돌 시 이 페이지 값이 기준 |
 | `3-1-CD-적용-범위-및-승인-정책.md` | 3 1 CD 적용 범위 및 승인 정책 | [wiki](https://github.com/100-hours-a-week/KTB4-13th-wiki/wiki/3-1-CD-%EC%A0%81%EC%9A%A9-%EB%B2%94%EC%9C%84-%EB%B0%8F-%EC%8A%B9%EC%9D%B8-%EC%A0%95%EC%B1%85) | CLD-3 CD 적용 범위 및 승인 정책 (`scope-approval.md`) | cld-3 | 대기 | 상위 페이지와 겹침·차이 대조 |
 | `3-2-배포-전략-및-전체-CI-CD-Pipeline.md` | 3 2 배포 전략 및 전체 CI CD Pipeline | [wiki](https://github.com/100-hours-a-week/KTB4-13th-wiki/wiki/3-2-%EB%B0%B0%ED%8F%AC-%EC%A0%84%EB%9E%B5-%EB%B0%8F-%EC%A0%84%EC%B2%B4-CI-CD-Pipeline) | CLD-3 배포 전략 및 CI CD Pipeline (`strategy-pipeline.md`) | cld-3 | 대기 | |
 | `3-3-배포-검증-및-Rollback.md` | 3 3 배포 검증 및 Rollback | [wiki](https://github.com/100-hours-a-week/KTB4-13th-wiki/wiki/3-3-%EB%B0%B0%ED%8F%AC-%EA%B2%80%EC%A6%9D-%EB%B0%8F-Rollback) | CLD-3 배포 검증 및 Rollback (`verify-rollback.md`) | cld-3 | 대기 | |
