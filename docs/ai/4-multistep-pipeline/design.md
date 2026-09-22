@@ -4,7 +4,7 @@ type: design
 group: ai-4
 owner: 미정
 status: 작성중
-updated: 2026-09-21
+updated: 2026-09-22
 sources:
   - 멀티스텝-AI-파이프라인-구현-검토.md
 ---
@@ -240,14 +240,14 @@ flowchart TD
 | 트리거: 온보딩 완료 직후 · 취향 기억 변경 시 | (구매·리뷰가 늘었다고 부르지 않음) |
 | 입력: onboarding + memories[] | (memories는 이미 vector 포함) |
 | 복제 테이블 조회: v_user_purchases ∪ v_user_library ∪ v_user_reviews | (user_id로. 요청 본문에 없음) |
-| 가중평균 centroid | 좋아한책 ∪ 작가벡터 ∪ 카테고리·태그 사전벡터 · ∪ 기억벡터 ∪ 이력 책벡터(구매3 / 리뷰4~5점2 / 담기1) |
+| 가중평균 centroid | 좋아한책 ∪ 카테고리·태그 사전벡터 · ∪ 기억벡터(작가 기억 포함) ∪ 이력 책벡터(구매3 / 리뷰4~5점2 / 담기1) |
 | 태그 가중치 집계 | (리뷰1~2점 −2: centroid엔 빼고 카테고리 점수만 깎음) |
 | user_profiles upsert | computed_at = 반영한 이력 행들의 최대 시각 (계산 시각 아님) · (user_id 단위 직렬, last-writer-wins) · 순위 영향값 바뀔 때만 profile_version +1 |
 | 파이프라인 B·C가 참조하는 | 개인화 단일 소스 |
 
 - **⑥은 "AI 파이프라인"이라기보다 가중평균 계산이다.**
 
-    좋아한 책·이력 책은 적재 시 문서벡터 재사용, 작가/카테고리/태그는 사전 임베딩, 기억은 ⑤가 이미 임베딩.
+    좋아한 책·이력 책은 적재 시 문서벡터 재사용, 카테고리/태그는 사전 임베딩, 기억은 ⑤가 이미 임베딩(작가 기억도 문장 벡터 그대로 쓴다).
 
     그래서 ⑥은 LLM도 임베딩 업스트림도 호출하지 않고, **503·504가 없다.**
 
@@ -520,12 +520,11 @@ def rebuild_profile(user_id: int, idempotency_key: str, onboarding: dict, memori
 
     hist = read_history_replica(user_id)                   # 요청 본문에 없음 — user_id로 복제 테이블 조회
     liked_vecs  = [book_doc_vector(b) for b in onboarding.get("liked_book_ids", [])[:50]]
-    author_vecs = [author_vector(m["value"]) for m in memories if m["type"] == "author"]
     tag_vecs    = preset_vectors(onboarding.get("categories", []) + onboarding.get("tags", []))
-    mem_vecs    = [m["vector"] for m in memories[-500:]]   # 이미 ⑤에서 임베딩 — 재호출 없음
+    mem_vecs    = [m["vector"] for m in memories[-500:]]   # 이미 ⑤에서 임베딩 — 재호출 없음. 작가 기억도 여기 포함
     hist_vecs   = hist.weighted_doc_vectors()             # 구매3 / 리뷰4~5점2 / 담기1, 리뷰1~2점 제외
 
-    centroid    = weighted_average(liked_vecs + author_vecs + tag_vecs + mem_vecs + hist_vecs)
+    centroid    = weighted_average(liked_vecs + tag_vecs + mem_vecs + hist_vecs)
     tag_weights = aggregate_tags(onboarding, memories, hist)   # 리뷰1~2점은 여기서 −2
 
     reflected_at = hist.max_row_ts()   # 실제로 읽어 반영한 이력 행들의 최대 시각. now() 아님 —

@@ -4,7 +4,7 @@ type: spec
 group: ai-1
 owner: 김세훈
 status: 작성중
-updated: 2026-09-18
+updated: 2026-09-22
 sources:
   - 모델-API-설계.md
 limit_exempt: 원본 8개 엔드포인트의 필드표·에러표·규칙 문장을 자르지 않고 전부 보존 (변환 문서)
@@ -752,7 +752,7 @@ GET /recommendations/feed?user_id=123&surface=recommend_more&sort=match
 ```python
 이력 = v_user_purchases ∪ v_user_library ∪ v_user_reviews  (복제 테이블, user_id로 조회)
 
-centroid = 가중평균( liked 책 문서벡터 ∪ memories(type:author) 작가벡터
+centroid = 가중평균( liked 책 문서벡터
                    ∪ 카테고리, 태그 사전임베딩 벡터 ∪ memories[].vector
                    ∪ 이력 책들의 문서벡터(구매 3, 리뷰 4~5점 2, 담기 1) )
 태그 가중치 = 온보딩 태그 + 기억 type 집계 + 이력 책들의 카테고리 점수
@@ -764,7 +764,7 @@ centroid = 가중평균( liked 책 문서벡터 ∪ memories(type:author) 작가
 |---|---|---|
 | 좋아한 책 (liked_book_ids) | 책 적재 때 만든 벡터 재사용 | 이미 있음 |
 | 구매, 도서관, 리뷰 책 (이력 3종) | 같은 도서 임베딩 재사용 | 이미 있음 |
-| 관심 작가 (memories type: author) | 작가 대표 벡터(그 작가 책들의 평균 등) | 미리 만들어 둠 |
+| 관심 작가 (memories type: author) | 기억 문장 벡터 그대로 (`memories[].vector`) | 야간 배치, 문장당 1번 |
 | 관심 카테고리, 태그 | 종류가 적어 미리 벡터로 | 미리 만들어 둠 |
 | 기억 문장 | 취향 추출 때 벡터로 | 야간 배치, 문장당 1번 |
 | reading_times, criteria | 벡터 없음. 태그 신호로만 |  |
