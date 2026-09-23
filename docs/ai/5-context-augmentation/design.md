@@ -60,7 +60,7 @@ flowchart TB
 | 노드 | 설명 |
 |---|---|
 | ② POST /embeddings | multilingual-e5-small · dim 384 · 모든 축의 공통 좌표계 (도서·passage·centroid·preset) |
-| ① POST /search | BM25(pg_trgm/tsvector) + pgvector + RRF · 결과 0건 → ③ 전환 신호 |
+| ① POST /search | pg_trgm 키워드 + pgvector + RRF · 결과 0건 → ③ 전환 신호 |
 | ④ GET /recommendations/feed | 취향 centroid 유사도 + 규칙 점수 · ※ passage 증강 없음 · 이유 문구 없음 (즉시성) |
 | ③ spec 델타 추출 | preset_vectors 얕은 RAG · 자유어 → 표준 태그 (422 감소) |
 | ③ 근거 생성 (카드 3장 확정 후에만) | book_passage top-k 증강 · → reason_short·reason_long·match_basis 한 호출 · → 문장별 인용 검증 (grounding) |
@@ -119,7 +119,7 @@ flowchart TD
 | BE MySQL | 커머스 원본 |
 | AI Postgres 안 복제본 | v_books · v_user_* · v_book_popularity |
 | 서버 병합 spec (6키) | 위반 시 422 |
-| 하이브리드 후보 검색 | BM25(pg_trgm/tsvector) + pgvector + RRF  (①과 동일 로직, 전부 같은 Postgres) |
+| 하이브리드 후보 검색 | pg_trgm 키워드 + pgvector + RRF  (①과 동일 로직, 전부 같은 Postgres) |
 | 결합 스코어링 | 질의 유사도 + 취향 centroid 유사도(⑥) + 인기(v_book_popularity) |
 | 증강 검색 | 각 book_id + spec.semantic · → book_passage top-k (소개·목차, +리뷰뷰 있으면) |
 | LLM (같은 한 호출): reason_short + reason_long + match_basis | 문장별 cited_passage_ids 출력 |
@@ -245,7 +245,7 @@ def index_passages(book_id: int, seoji: dict, reviews: list[Review] | None):
     `purpose` 는 명세 enum(`query`/`document`)만 있으므로 passage도 `document` 로 색인.
 
 - **저장소**: `book_passage` 는 **AI PostgreSQL**에 `book_embeddings` 와 나란히.
-    `vector(384)` 컬럼 + HNSW 인덱스. BM25용 `tsvector`/`pg_trgm` 도 같은 테이블/DB.
+    `vector(384)` 컬럼 + HNSW 인덱스. 키워드 검색용 `pg_trgm` 도 같은 테이블/DB.
 
 - **규모**: passage 수 ≈ 도서 수 × 8~15 → 5만 종이면 40~75만 행.
     E2 실측(전수 스캔 N=20만 p95 7.5ms) 근거로 ANN이면 여유.
