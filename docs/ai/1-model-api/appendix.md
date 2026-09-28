@@ -57,7 +57,7 @@ curl -X POST https://ai.internal.bookjeok.com/embeddings \
   "data": {
     "vectors": [[0.0123, -0.0456, "…"]],
     "dim": 384,
-    "model": "intfloat/multilingual-e5-small"
+    "model": "multilingual-e5-small"
   }
 }
 ```

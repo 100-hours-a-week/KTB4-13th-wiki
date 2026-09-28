@@ -194,7 +194,7 @@ flowchart LR
 | ⑥ 취향 프로필 조회 | centroid + tag_weights + computed_at |
 | 규칙 신호 | 작가·카테고리·태그·이력·인기 |
 | v_user_* (이력) · v_book_popularity (인기) | AI Postgres 복제 테이블 |
-| 개인화 신호 끄고 | 판매 수 순 다음 신간순으로 색인 순서대로 앞부분만 읽고 500권에서 끝난다(match_score=0, AI #193) |
+| 개인화 신호 끄고 | 인기·신간만, match_score=0 |
 | 정렬·필터 | (surface=recommend_more일 때만 sort/filters) |
 | next_cursor 발급 | (서버는 목록을 저장하지 않음) |
 
