@@ -718,8 +718,8 @@ GET /recommendations/feed?user_id=123&surface=recommend_more&sort=match
 | user_id | int | Y | 사용자 ID |
 | idempotency_key | string | Y | 이 요청의 고유 키 ¹ |
 | onboarding | object | Y | 온보딩 응답 전체 ² |
-| onboarding.reading_times | string[] | N | 읽는 시간대. 최대 5개 |
-| onboarding.criteria | string[] | N | 책 고르는 기준. 최대 3개(보기: 좋아하는 출판사 / 베스트셀러 / 리뷰, 별점) |
+| onboarding.reading_times | string[] | N | 읽는 시간대. 최대 5개. V1은 받기만 하고 추천에 쓰지 않는다 |
+| onboarding.criteria | string[] | N | 책 고르는 기준 최대 3개(보기: 좋아하는 출판사 / 베스트셀러 / 리뷰, 별점)이며 V1은 받기만 하고 추천에 쓰지 않는다 |
 | onboarding.categories | string[] | N | 관심 대분류(앱 화면 값). 최대 3개. ①④ 필터의 category와 같은 값이다. 카탈로그 분류와는 대응표로 잇고, 대응표에 없는 값은 건너뛴다 |
 | onboarding.tags | string[] | N | 세부 태그. 최대 9개 |
 | onboarding.liked_book_ids | int[] | N | 마음에 드는 책 ID. 0권 가능, 상한 없음. 서버는 앞 50권만 씀 |
@@ -759,7 +759,7 @@ GET /recommendations/feed?user_id=123&surface=recommend_more&sort=match
 centroid = 가중평균( liked 책 문서벡터
                    ∪ 카테고리, 태그 사전임베딩 벡터 ∪ memories[].vector
                    ∪ 이력 책들의 문서벡터(구매 3, 리뷰 4~5점 2, 담기 1) )
-태그 가중치 = 온보딩 태그 + 기억 type 집계 + 이력 책들의 카테고리 점수
+태그 가중치 = 온보딩 태그 + 기억 type 집계(V1 미구현) + 이력 책들의 카테고리 점수
 → {centroid, tag_weights, cold_start, computed_at} 을 취향 프로필 테이블에 upsert
    (computed_at = 위에서 실제로 읽은 이력 행들의 시각 중 최댓값. 계산 시각이 아니다)
 ```
@@ -771,7 +771,7 @@ centroid = 가중평균( liked 책 문서벡터
 | 관심 작가 (memories type: author) | 기억 문장 벡터 그대로 (`memories[].vector`) | 야간 배치, 문장당 1번 |
 | 관심 카테고리, 태그 | 종류가 적어 미리 벡터로 | 미리 만들어 둠 |
 | 기억 문장 | 취향 추출 때 벡터로 | 야간 배치, 문장당 1번 |
-| reading_times, criteria | 벡터 없음. 태그 신호로만 |  |
+| reading_times, criteria | 벡터 없음. 태그 신호로만(V1 미구현: 받기만 하고 쓰지 않는다) |  |
 
 **이력 가중치**. 카테고리 점수와 centroid 가중평균에 같은 값을 쓴다.
 

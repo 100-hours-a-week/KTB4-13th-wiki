@@ -199,8 +199,8 @@ AI가 조회하지 않는다. BE가 요청에 실어 보내고 AI는 계산에�
 | 필드명 | 타입 | Null 허용 | 설명 | 필요한 이유 | 타입 근거 |
 | --- | --- | --- | --- | --- | --- |
 | user_id | int | N | 사용자 ID | 프로필 생성 요청이 해당 사용자의 응답 전체를 전달 | 커머스 정수 ID |
-| reading_times | string[] | Y | 읽는 시간대. 최대 5개 | 벡터화하지 않고 태그 신호로만 사용 | 다중 선택이라 배열. 미응답 시 생략 |
-| criteria | string[] | Y | 책 고르는 기준. 최대 3개 | 같음 | 다중 선택이라 배열. 미응답 시 생략 |
+| reading_times | string[] | Y | 읽는 시간대. 최대 5개 | 벡터화하지 않고 태그 신호로만 사용(V1 미구현) | 다중 선택이라 배열. 미응답 시 생략 |
+| criteria | string[] | Y | 책 고르는 기준. 최대 3개 | 같음(V1 미구현) | 다중 선택이라 배열. 미응답 시 생략 |
 | categories | string[] | Y | 관심 대분류. 최대 3개 | 기동 시 만들어 둔 사전 벡터(5절 결정 기록)로 centroid 재료. v_books.category와는 대응표(AI #110)로 잇는다 | 다중 선택이라 배열. 미응답 시 생략 |
 | tags | string[] | Y | 세부 태그. 최대 9개 | 사전 벡터가 centroid 재료이자 tag_weights의 초기값 | 다중 선택이라 배열. 미응답 시 생략 |
 | liked_book_ids | int[] | Y | 선호 도서 ID 목록 | 해당 도서의 임베딩이 centroid 재료 | 도서 ID 배열. 상한 없이 수신하되 앞 50개만 사용 |
@@ -226,7 +226,7 @@ AI가 조회하지 않는다. BE가 요청에 실어 보내고 AI는 계산에�
 | 필드명 | 타입 | Null 허용 | 설명 | 필요한 이유 | 타입 근거 |
 | --- | --- | --- | --- | --- | --- |
 | user_id | int | N | 사용자 ID | 프로필 생성 요청이 해당 사용자의 기억 전체를 전달 | 커머스 정수 ID. AI DB에 users가 없어 FK가 아니다 |
-| type | enum | N | mood, topic, author, condition | tag_weights의 type 집계에 사용. 작가 취향은 이 경로로만 유입 | 값이 넷으로 고정된 분류라 enum |
+| type | enum | N | mood, topic, author, condition | tag_weights의 type 집계에 사용(V1 미구현). 작가 취향은 이 경로로만 유입 | 값이 넷으로 고정된 분류라 enum |
 | value | string | N | 취향 내용 한두 문장 | 추출 요청에 기존 취향으로 전달해 중복 추출을 차단 | 짧은 자연어 문장 |
 | confidence | float | N | 신뢰도 0-1 | 호출자의 임계 판정용. 0.5 미만은 반환하지 않음 | 0-1 연속값이라 실수 |
 | vector | float[] | N | value 문장의 임베딩 벡터 | centroid 재료. 프로필 생성 시 재임베딩 없이 그대로 사용 | 임베딩 API 출력을 그대로 보관. 요청 본문에는 JSON 실수 배열로 실린다 |
