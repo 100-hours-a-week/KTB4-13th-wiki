@@ -10,10 +10,10 @@ sources:
 ---
 **요약** Java 25·Gradle·Spring Boot·MySQL(InnoDB)·Redis 선택 이유와 서비스 적용 지점을 정리한 기술 스택 정의서다.
 
-##### Language: Java 25 - [link](https://github.com/100-hours-a-week/KTB4-13th-wiki/wiki/%5B3%EB%8B%A8%EA%B3%84%5D-%EA%B8%B0%EC%88%A0-%EC%8A%A4%ED%83%9D-%EC%A0%95%EC%9D%98%EC%84%9C#java-25)
-##### Build: Gradle - [link](https://github.com/100-hours-a-week/KTB4-13th-wiki/wiki/%5B3%EB%8B%A8%EA%B3%84%5D-%EA%B8%B0%EC%88%A0-%EC%8A%A4%ED%83%9D-%EC%A0%95%EC%9D%98%EC%84%9C/#%EB%B9%8C%EB%93%9C-gradle)
-##### Framework: Spring 4.1.0 - [](url)
-##### Database: MySQL 8.1.14 - [link](https://github.com/100-hours-a-week/KTB4-13th-wiki/wiki/%5B3%EB%8B%A8%EA%B3%84%5D-%EA%B8%B0%EC%88%A0-%EC%8A%A4%ED%83%9D-%EC%A0%95%EC%9D%98%EC%84%9C#mysqlinnodb)
+##### Language: Java 25 - [Java 25](#java-25)
+##### Build: Gradle - [빌드: Gradle](#빌드-gradle)
+##### Framework: Spring 4.1.0 - [프레임워크: Spring Boot](#프레임워크-spring-boot)
+##### Database: MySQL 8.1.14 - [MySQL(InnoDB)](#mysqlinnodb)
 
 ## Java 25
 
