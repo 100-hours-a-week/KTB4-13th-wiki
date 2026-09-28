@@ -1201,7 +1201,7 @@ flowchart TB
 ## 5. 공통 규약
 
 - **응답 envelope**: 모든 응답은 { “message”: <상태 문자열>, “data”: <내용 또는 null> }. /health만 예외
-- **시각 기준**: AI DB의 모든 시각 컬럼은 UTC `timestamptz`다. MySQL `DATETIME`은 시간대가 없으므로 복제 시 UTC로 해석해 적재한다. computed_at 비교가 이중 반영 차단의 유일한 장치라, 어긋나면 예외도 로그도 없이 **점수만 조용히 틀린다**
+- **시각 기준**: AI DB의 모든 시각 컬럼은 `timestamptz`다. BE MySQL `DATETIME`은 시간대가 없고 BE는 한국 시간(Asia/Seoul)으로 저장하므로, 복제 시 Asia/Seoul로 해석해 적재한다. computed_at 비교가 이중 반영 차단의 유일한 장치라, 어긋나면 예외도 로그도 없이 **점수만 조용히 틀린다**
 - **필드 완결성**: 문서에 적힌 응답 필드는 항상 존재. 빈 값은 null, [], {}. 조건부 필드도 해당 없을 땐 null. 빈 결과(0건, 카드 없음, 인식 실패, 추출 없음)는 오류가 아니라 200
 - **오류 본문**: 성공과 같은 envelope에 data: null. 사유는 message의 문자열
 - **인증**: BE→AI는 서비스 토큰(Authorization: Bearer). 없거나 틀리면 401. /health는 예외이며 내부망에서만 접근
