@@ -192,7 +192,7 @@ AI가 조회하지 않는다. BE가 요청에 실어 보내고 AI는 계산에�
 | 필드명 | 타입 | Null 허용 | 설명 | 필요한 이유 | 타입 근거 |
 | --- | --- | --- | --- | --- | --- |
 | user_id | int | N | 사용자 ID | 모든 요청의 필수 필드. 취향 프로필과 이력 테이블의 조회 축 | 커머스 정수 ID |
-| consented | bool | N | 취향 수집 동의 여부 | 취향 기억 추출에서 false면 추출을 수행하지 않고 nothing_found로 응답 | 동의 여부 분기라 bool. 요청 JSON은 `1`/`0`이 아니라 `true`/`false` |
+| consented | bool | N | 개인화 추천에 동의했는지(온보딩) | 취향 기억 추출에서 false면 추출을 수행하지 않고 nothing_found로 응답 | 동의 여부 분기라 bool. 요청 JSON은 `1`/`0`이 아니라 `true`/`false` |
 
 ### 3.8 onboarding_responses
 
