@@ -289,7 +289,7 @@ LLM 장애면 1과 3을 건너뛰고 요청의 spec으로 2만 돌려 점수 상
 | 필드 | 타입 | 필수 | 설명 |
 |---|---|---|---|
 | user_id | int | Y | 사용자 ID |
-| consented | bool | Y | 취향 수집 동의 여부. false면 (V2) 대화에서 취향을 뽑지 않음. V1에서는 동작에 영향 없음 |
+| consented | bool | Y | 개인화 추천에 동의했는지(온보딩) ⁵ |
 | spec | object | Y | spec(추천 조건 객체, 6개 키) ¹ |
 | message | string | N | 이번 턴의 사용자 메시지 ² |
 | recent_turns | object[] | N | 최근 대화(role, text) ³ |
@@ -303,6 +303,8 @@ LLM 장애면 1과 3을 건너뛰고 요청의 spec으로 2만 돌려 점수 상
 ³ 서버가 대화를 기억하지 않아 매 턴 같이 보냄. 최대 20턴(초과분은 최근 20턴만 사용), text 각 200자 이하
 
 ⁴ 1장, JPG, PNG, 10MB 이하. 있으면 이미지 턴이 됨
+
+⁵ V1에서는 동작에 영향 없음. 개인화는 취향 프로필 유무로 판단한다(AI #266). V2에서 false면 대화에서 취향을 뽑지 않는다
 
 **`spec` 스키마**. 서버가 이 형식을 검증한다.
 
@@ -618,7 +620,7 @@ GET /recommendations/feed?user_id=123&surface=recommend_more&sort=match
 | 필드 | 타입 | 필수 | 설명 |
 |---|---|---|---|
 | user_id | int | Y | 사용자 ID |
-| consented | bool | Y | 취향 수집 동의 여부. false면 뽑지 않고 nothing_found: true |
+| consented | bool | Y | 개인화 추천에 동의했는지(③과 같은 값). false면 뽑지 않고 nothing_found: true |
 | conversation | object[] | Y | 대화 세션 한 개의 전체 턴(role, text). 최대 40턴(초과분은 최근 40턴만 사용), text 각 4,000자 이하 |
 | conversation_id | string | Y | 세션 ID. 뽑은 취향의 출처로 기록하고, 세션을 다시 처리하면 이 ID로 이전 결과를 교체 |
 | existing_preferences | object[] | N | 이미 저장된 취향 전체({type, value}). 같은 취향을 또 뽑지 않기 위해 보냄 |
