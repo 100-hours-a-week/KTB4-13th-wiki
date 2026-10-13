@@ -4,7 +4,7 @@ type: spec
 group: ai-1
 owner: 김세훈
 status: 작성중
-updated: 2026-09-30
+updated: 2026-10-12
 sources:
   - 모델-API-설계.md
 limit_exempt: 원본 8개 엔드포인트의 필드표·에러표·규칙 문장을 자르지 않고 전부 보존 (변환 문서)
@@ -598,6 +598,16 @@ GET /recommendations/feed?user_id=123&surface=recommend_more&sort=match
 
 **야간 배치**가 그날 활동이 있었던(종료된) 대화 세션을 모아 **세션 단위로** 호출한다. 세션의 메시지 전체를 LLM에 넣어 취향 사실을 뽑고, 각 사실을 임베딩해 벡터와 함께 돌려준다. 저장은 BE가 한다(취향 테이블에 한 행씩). AI 서버는 입력도 결과도 저장하지 않으며 **AI DB에도 남기지 않는다.** 뽑은 기억이 AI로 되돌아오는 경로는 ⑥ 요청 본문 하나뿐이다.
 
+**뽑는 기준**
+
+- 사용자가 자기가 읽으려고 찾거나 좋아한다고 말한 분위기, 주제, 작가, 늘 지키는 조건을 뽑는다. 좋아한다고 직접 말하지 않고 추천을 부탁하기만 해도 뽑는다.
+- 싫어하거나 읽지 않는다고 말한 것도 뽑는다.
+- 남에게 줄 책, 제목으로 찾은 책 한 권, 가격·출간 연도·배송 같은 조건은 뽑지 않는다.
+- "오늘은", "이번 달은"처럼 이번만이라고 밝힌 것과 말했다가 거둔 것은 뽑지 않는다.
+- 챗봇만 말하고 사용자가 받아들이지 않은 것은 뽑지 않는다.
+- 좋아한 책을 제목으로만 말하면 topic으로 뽑고 문장에 그 제목을 넣는다. 사용자가 말하지 않은 그 책의 성격은 덧붙이지 않는다.
+- 병명, 소송, 가족의 사정 같은 민감한 개인사는 문장에 넣지 않는다.
+
 **입력**
 
 ```json
@@ -620,8 +630,8 @@ GET /recommendations/feed?user_id=123&surface=recommend_more&sort=match
 |---|---|---|---|
 | user_id | int | Y | 사용자 ID |
 | consented | bool | Y | 개인화 추천에 동의했는지(③과 같은 값). false면 뽑지 않고 nothing_found: true |
-| conversation | object[] | Y | 대화 세션 한 개의 전체 턴(role, text). 최대 40턴(초과분은 최근 40턴만 사용), text 각 4,000자 이하 |
-| conversation_id | string | Y | 세션 ID. 뽑은 취향의 출처로 기록하고, 세션을 다시 처리하면 이 ID로 이전 결과를 교체 |
+| conversation | object[] | Y | 대화 세션 한 개의 전체 턴(role, text). 최대 40턴(초과분은 최근 40턴만 사용), text 각 4,000자 이하, 빈 목록이면 뽑지 않고 nothing_found: true |
+| conversation_id | string | Y | 세션 ID(200자 이하). 뽑은 취향의 출처로 기록하고, 세션을 다시 처리하면 이 ID로 이전 결과를 교체 |
 | existing_preferences | object[] | N | 이미 저장된 취향 전체({type, value}). 같은 취향을 또 뽑지 않기 위해 보냄 |
 
 **출력** `200`
@@ -647,14 +657,18 @@ GET /recommendations/feed?user_id=123&surface=recommend_more&sort=match
 
 | 필드 | 타입 | 설명 |
 |---|---|---|
-| extractions | object[] | 뽑은 취향 사실. 없으면 [] |
-| extractions[].type | enum | mood, topic, author, condition |
-| extractions[].value | string | 한두 문장 요약 |
-| extractions[].confidence | float | 신뢰도 0–1. 0.5 미만은 반환하지 않는다. 호출자의 임계 판정용이다 |
-| extractions[].vector | float[] | value 문장의 벡터. BE가 함께 저장하고 프로필 계산에 씀 |
+| extractions | object[] | 뽑은 취향 사실. 없으면 []. 대화 하나에 최대 5개이고 신뢰도가 높은 순이다 |
+| extractions[].type | enum | mood(분위기), topic(주제), author(작가), condition(늘 지키는 조건) |
+| extractions[].value | string | 한두 문장 요약. 200자 이하 |
+| extractions[].confidence | float | 신뢰도 0–1. 0.5 미만은 반환하지 않는다. 호출자의 임계 판정용이다 ¹ |
+| extractions[].vector | float[] | value 문장의 벡터. BE가 함께 저장하고 프로필 계산에 씀 ² |
 | extractions[].dim | int | 벡터 길이. 임베딩 API가 돌려주는 값과 같다 |
 | extractions[].source_conversation_id | string | 요청의 conversation_id 그대로 |
 | nothing_found | bool | true면 뽑을 게 없거나 전부 이미 있거나 동의 안 함. 이때 extractions는 [] |
+
+¹ 사용자가 직접 말한 취향은 높게, 추천을 부탁한 내용에서 드러난 취향은 그보다 낮게 매긴다
+
+² ②의 `purpose: query`와 같은 방식으로 만든다. 책 벡터와 견주는 쪽이기 때문이다
 
 **에러**
 
@@ -662,7 +676,7 @@ GET /recommendations/feed?user_id=123&surface=recommend_more&sort=match
 |---|---|---|
 | 400 | invalid_request | 형식, 길이 위반(text 4,000자 초과 등) |
 | 401 | unauthorized | 서비스 토큰 없음, 불일치 |
-| 413 | payload_too_large | 요청 본문이 상한 초과 |
+| 413 | payload_too_large | 요청 본문이 2MB 초과 |
 | 429 | rate_limited | 호출 한도 초과. Retry-After 헤더(대기 초)를 함께 보냄 |
 | 500 | internal_server_error | 서버 내부 오류 |
 | 503 | upstream_unavailable | 외부 LLM 또는 임베딩 업스트림 장애. 배치는 다음 날 밤 다시 돌리면 됨 |
