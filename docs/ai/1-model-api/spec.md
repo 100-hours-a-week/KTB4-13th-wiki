@@ -603,9 +603,10 @@ GET /recommendations/feed?user_id=123&surface=recommend_more&sort=match
 
 - 사용자가 자기가 읽으려고 찾거나 좋아한다고 말한 분위기, 주제, 작가, 늘 지키는 조건을 뽑는다. 좋아한다고 직접 말하지 않고 추천을 부탁하기만 해도 뽑는다.
 - 싫어하거나 읽지 않는다고 말한 것도 뽑는다.
+- 좋아한다고 말하지 않고 찾기만 한 것은 문장을 “…을 좋아함”이 아니라 “…을 찾음”으로 적는다.
 - 남에게 줄 책, 제목으로 찾은 책 한 권, 가격·출간 연도·배송 같은 조건은 뽑지 않는다.
 - "오늘은", "이번 달은"처럼 이번만이라고 밝힌 것과 말했다가 거둔 것은 뽑지 않는다.
-- 조수만 말하고 사용자가 받아들이지 않은 것은 뽑지 않는다.
+- 챗봇만 말하고 사용자가 받아들이지 않은 것은 뽑지 않는다. 사용자가 한 말만 근거로 삼는다.
 - 좋아한 책을 제목으로만 말하면 topic으로 뽑고 문장에 그 제목을 넣는다. 사용자가 말하지 않은 그 책의 성격은 덧붙이지 않는다.
 - 병명, 소송, 가족의 사정 같은 민감한 개인사는 문장에 넣지 않는다.
 
@@ -633,7 +634,9 @@ GET /recommendations/feed?user_id=123&surface=recommend_more&sort=match
 | consented | bool | Y | 개인화 추천에 동의했는지(③과 같은 값). false면 뽑지 않고 nothing_found: true |
 | conversation | object[] | Y | 대화 세션 한 개의 전체 턴(role, text). 최대 40턴(초과분은 최근 40턴만 사용), text 각 4,000자 이하, 빈 목록이면 뽑지 않고 nothing_found: true |
 | conversation_id | string | Y | 세션 ID(200자 이하). 뽑은 취향의 출처로 기록하고, 세션을 다시 처리하면 이 ID로 이전 결과를 교체 |
-| existing_preferences | object[] | N | 이미 저장된 취향 전체({type, value}). 같은 취향을 또 뽑지 않기 위해 보냄 |
+| existing_preferences | object[] | N | 이미 저장된 취향 전체({type, value}). 같은 취향을 또 뽑지 않기 위해 보냄 ¹ |
+
+¹ 종류와 글자가 같은 취향은 전부와 견줘 뺀다. 뜻이 같은지는 뒤의 100개까지만 보므로 최근 것이 뒤에 오게 보낸다. 뜻이 같은 취향이 다른 표현으로 다시 나올 수 있다
 
 **출력** `200`
 
@@ -680,7 +683,7 @@ GET /recommendations/feed?user_id=123&surface=recommend_more&sort=match
 | 413 | payload_too_large | 요청 본문이 2MB 초과 |
 | 429 | rate_limited | 호출 한도 초과. Retry-After 헤더(대기 초)를 함께 보냄 |
 | 500 | internal_server_error | 서버 내부 오류 |
-| 503 | upstream_unavailable | 외부 LLM 또는 임베딩 업스트림 장애. 배치는 다음 날 밤 다시 돌리면 됨 |
+| 503 | upstream_unavailable | 외부 LLM 또는 임베딩 업스트림 장애, LLM의 답을 읽을 수 없을 때. 배치는 다음 날 밤 다시 돌리면 됨 |
 | 504 | generation_timeout | 생성 30초 초과 |
 
 </details>
