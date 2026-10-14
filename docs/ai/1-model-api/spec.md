@@ -4,7 +4,7 @@ type: spec
 group: ai-1
 owner: 김세훈
 status: 작성중
-updated: 2026-10-12
+updated: 2026-10-14
 sources:
   - 모델-API-설계.md
 limit_exempt: 원본 8개 엔드포인트의 필드표·에러표·규칙 문장을 자르지 않고 전부 보존 (변환 문서)
@@ -52,7 +52,7 @@ limit_exempt: 원본 8개 엔드포인트의 필드표·에러표·규칙 문장
 | cart.remove | 장바구니에서 빼기 | 쓰기 | 본인 장바구니만 |
 | book.offer | 가격, 재고 조회(isbn마다 price, in_stock). 모르는 책은 결과에서 빠진다 | 읽기 | - |
 
-- **BE tool 5개는 책을 ISBN으로 받는다.** BE는 ISBN을 상품과 장바구니 항목 번호로 바꾼다. AI 서버만 부를 수 있는 입구를 BE가 열고, 모양은 BE와 확정한다.
+- **BE tool 5개는 책을 ISBN으로 받는다.** BE는 ISBN을 상품과 장바구니 항목 번호로 바꾼다. AI 서버만 부를 수 있는 내부 API를 BE가 열고, 모양은 BE와 확정한다.
 - **AI 서버 안에서 처리하는 tool 3개는 BE로 나가지 않는다.** `selection.pick`(예산, 권수 조합 고르기), `book.compare`(비교), `ui.guide`(화면 이동 버튼 붙이기)이다. `tool_calls[]`에는 기록된다.
 - **인증**. AI→BE tool 호출은 방향 전용 서비스 토큰으로 인증하고, 누구 장바구니인지는 BE가 `user_id`로 tool마다 다시 확인한다. “본인만”, “본인 주문만”은 그 확인을 뜻한다.
 
@@ -874,9 +874,9 @@ centroid = 가중평균( liked 책 문서벡터
         },
         "result": {
           "offers": [
-            { "isbn": "9788900000011", "price": 13500, "in_stock": true },
-            { "isbn": "9788900000028", "price": 14000, "in_stock": true },
-            { "isbn": "9788900000035", "price": 12800, "in_stock": true }
+            { "isbn": "9788900000011", "title": "달러구트 꿈 백화점", "price": 13500, "in_stock": true },
+            { "isbn": "9788900000028", "title": "밤의 도서관", "price": 14000, "in_stock": true },
+            { "isbn": "9788900000035", "title": "아무튼, 산", "price": 12800, "in_stock": true }
           ]
         },
         "grounded": true
@@ -885,7 +885,11 @@ centroid = 가중평균( liked 책 문서벡터
         "name": "selection.pick",
         "arguments": { "budget_total": 27000, "count": 2 },
         "result": {
-          "chosen": ["9788900000011", "9788900000035"],
+          "ok": true,
+          "chosen": [
+            { "isbn": "9788900000011", "title": "달러구트 꿈 백화점", "price": 13500, "match_score": 92 },
+            { "isbn": "9788900000035", "title": "아무튼, 산", "price": 12800, "match_score": 81 }
+          ],
           "total_price": 26300,
           "alternatives_considered": 3
         },
@@ -911,8 +915,7 @@ centroid = 가중평균( liked 책 문서벡터
         "label": "담기",
         "action": "confirm_selection",
         "isbns": ["9788900000011", "9788900000035"]
-      },
-      { "label": "다른 조합", "action": "reselect" }
+      }
     ]
   }
 }
@@ -929,13 +932,15 @@ centroid = 가중평균( liked 책 문서벡터
 | tool_calls[].grounded | bool | false면 그 결과가 답변 내용을 뒷받침하지 못함. 판정 규칙은 아래 |
 | resolved_reference | object? | “이거, 1번”이 가리키는 책을 찾은 결과 { ref, isbns } ³ |
 | selection | object? | “예산 안에서 N권”처럼 조건 걸고 골라 담을 때만 { goal, constraints, chosen[], total_price, alternatives_considered }. 아니면 null |
-| buttons | object[] | 호출자가 제시할 후속 동작 목록. 없으면 []. action 값은 5장 action 표 참고 |
+| buttons | object[] | 호출자가 제시할 후속 동작 목록. 없으면 []. action 값은 5장 action 표 참고 ⁴ |
 
 ¹ 없으면 []. 골라 담기, 비교, 화면 안내처럼 AI 서버 안에서 처리한 tool도 기록용으로 포함
 
 ² BE tool의 결과 형식은 예시이며 BE와 합의해 확정
 
-³ 카드와 장바구니 목록에 대조해 사용자가 말한 책이 정해질 때만 isbns를 채운다. 어느 책인지 하나로 정해지지 않으면 isbns가 빈 목록이고 되묻는 답변을 준다(tool_calls: []). 해석할 게 없으면 null
+³ **사용자의 말이 가리킨 책**(번호, 그 책만 가리키는 제목 낱말, 지금 보고 있는 책)이 정해질 때만 isbns를 채운다. 어느 책인지 하나로 정해지지 않으면 `null`이고 되묻는 답변을 준다. 되묻기 위해 선택지의 제목을 조회(`book.offer`)했어도 그 책들은 싣지 않는다. 그래서 되물음의 `tool_calls`는 `[]`이거나 조회 기록만 있다
+
+⁴ 지금 만드는 버튼은 `confirm_selection`과 `navigate`뿐이다. `confirm_reference`, `dismiss`, `reselect`, `open_book`은 5장 action 표에 정의만 있고 만들지 않는다(후속). 버튼 없이 되물으면 `buttons`는 `[]`다
 
 **grounding 규칙**
 
@@ -949,7 +954,7 @@ centroid = 가중평균( liked 책 문서벡터
 
 **시키는 대로 실행, 담기**
 
-담기 전에 장바구니를 조회한다. 담기가 “요청 수량으로 바꾸기”라서 이미 담긴 책을 담으면 수량이 줄 수 있기 때문이다.
+담기 전에 BE에서 장바구니를 다시 읽는다. 담기가 “요청 수량으로 바꾸기”라서 이미 담긴 책을 담으면 수량이 줄 수 있기 때문이다. 이 조회는 `cart.add` 안에서 하며 `tool_calls`에 따로 남지 않는다.
 
 ```json
 {
@@ -958,22 +963,6 @@ centroid = 가중평균( liked 책 문서벡터
     "reply": "《달러구트 꿈 백화점》을 장바구니에 담았어요.",
     "not_shopping": false,
     "tool_calls": [
-      {
-        "name": "cart.view",
-        "arguments": {},
-        "result": {
-          "items": [
-            {
-              "isbn": "9788900000035",
-              "title": "아무튼, 산",
-              "price": 12800,
-              "quantity": 1,
-              "available": true
-            }
-          ]
-        },
-        "grounded": true
-      },
       {
         "name": "cart.add",
         "arguments": { "isbn": "9788900000011", "quantity": 1 },
@@ -1003,18 +992,13 @@ centroid = 가중평균( liked 책 문서벡터
     "not_shopping": false,
     "tool_calls": [
       {
-        "name": "cart.view",
-        "arguments": {},
+        "name": "cart.add",
+        "arguments": { "isbn": "9788900000011", "quantity": 1 },
         "result": {
-          "items": [
-            {
-              "isbn": "9788900000011",
-              "title": "달러구트 꿈 백화점",
-              "price": 13500,
-              "quantity": 2,
-              "available": true
-            }
-          ]
+          "ok": false,
+          "error": "ALREADY_IN_CART",
+          "title": "달러구트 꿈 백화점",
+          "quantity": 2
         },
         "grounded": true
       }
@@ -1031,9 +1015,54 @@ centroid = 가중평균( liked 책 문서벡터
 }
 ```
 
-**되물음 (confidence 낮음, tool 미실행)**
+**장바구니 보기, 합계**
 
-confidence는 두지 않는다. 카드와 장바구니 목록에 대조해도 어느 책인지 하나로 정해지지 않을 때가 이 경우다.
+`cart.view` 결과의 `total`은 AI 서버가 구매할 수 있는 책의 가격 × 수량을 더해 넣는다. BE는 합계를 주지 않는다. 합계는 이 값으로만 말한다.
+
+```json
+{
+  "message": "agent_success",
+  "data": {
+    "reply": "《달러구트 꿈 백화점》 2권과 《아무튼, 산》 1권이 담겨 있고, 합계는 39,800원이에요.",
+    "not_shopping": false,
+    "tool_calls": [
+      {
+        "name": "cart.view",
+        "arguments": {},
+        "result": {
+          "items": [
+            {
+              "isbn": "9788900000011",
+              "title": "달러구트 꿈 백화점",
+              "price": 13500,
+              "quantity": 2,
+              "available": true
+            },
+            {
+              "isbn": "9788900000035",
+              "title": "아무튼, 산",
+              "price": 12800,
+              "quantity": 1,
+              "available": true
+            }
+          ],
+          "total": 39800
+        },
+        "grounded": true
+      }
+    ],
+    "resolved_reference": null,
+    "selection": null,
+    "buttons": [
+      { "label": "장바구니 보기", "action": "navigate", "target": "CART-001" }
+    ]
+  }
+}
+```
+
+**되물음 (tool 미실행)**
+
+카드와 장바구니 목록에 대조해도 어느 책인지 하나로 정해지지 않을 때가 이 경우다. 사용자의 말에 책을 가리키는 번호, 제목, “전부” 같은 근거가 없는데 LLM이 책을 골라 쓰기 tool을 부르려 하면 코드가 `REFERENCE_NOT_STATED`로 막고 되묻게 한다. 되묻기 버튼(`네, 1번`, `아니요`)은 아직 만들지 않는다.
 
 ```json
 {
@@ -1042,15 +1071,9 @@ confidence는 두지 않는다. 카드와 장바구니 목록에 대조해도 �
     "reply": "어떤 책 말씀이실까요? 방금 추천한 1번 《달러구트 꿈 백화점》이 맞을까요?",
     "not_shopping": false,
     "tool_calls": [],
-    "resolved_reference": {
-      "ref": "그 책",
-      "isbns": []
-    },
+    "resolved_reference": null,
     "selection": null,
-    "buttons": [
-      { "label": "네, 1번", "action": "confirm_reference", "isbn": "9788900000011" },
-      { "label": "아니요", "action": "dismiss" }
-    ]
+    "buttons": []
   }
 }
 ```
@@ -1069,8 +1092,8 @@ confidence는 두지 않는다. 카드와 장바구니 목록에 대조해도 �
         "arguments": { "isbns": ["9788900000011", "9788900000035"] },
         "result": {
           "offers": [
-            { "isbn": "9788900000011", "price": 13500, "in_stock": true },
-            { "isbn": "9788900000035", "price": 12800, "in_stock": true }
+            { "isbn": "9788900000011", "title": "달러구트 꿈 백화점", "price": 13500, "in_stock": true },
+            { "isbn": "9788900000035", "title": "아무튼, 산", "price": 12800, "in_stock": true }
           ]
         },
         "grounded": true
@@ -1078,7 +1101,11 @@ confidence는 두지 않는다. 카드와 장바구니 목록에 대조해도 �
       {
         "name": "book.compare",
         "arguments": { "isbns": ["9788900000011", "9788900000035"] },
-        "result": { "basis": "description" },
+        "result": {
+          "ok": true,
+          "basis": "description",
+          "summary": "1번은 문장이 담백하고 3번은 화제작이지만 호흡이 무겁다."
+        },
         "grounded": true
       }
     ],
@@ -1087,9 +1114,7 @@ confidence는 두지 않는다. 카드와 장바구니 목록에 대조해도 �
       "isbns": ["9788900000011", "9788900000035"]
     },
     "selection": null,
-    "buttons": [
-      { "label": "1번 담기", "action": "confirm_reference", "isbn": "9788900000011" }
-    ]
+    "buttons": []
   }
 }
 ```
@@ -1144,27 +1169,47 @@ BE tool은 쓰지 않고, AI 서버 안의 `ui.guide`로 이동 버튼만 붙인
 | 200 | agent_success | 정상 처리. 되물음, 범위 밖 안내, 쇼핑 요청 아님, tool 실행 실패도 200으로 반환하고 tool_calls에 결과를 기록한다 |
 | 401 | unauthorized | 서비스 토큰 없음, 불일치 |
 | 409 | idempotency_conflict | 같은 idempotency_key에 다른 본문. 재시도 중단 |
+| 413 | payload_too_large | 요청 본문이 64KB 초과 |
 | 422 | grounding_failed | 답변의 핵심 주장을 tool 결과로 뒷받침하지 못해 답변을 통째로 버림. 클라이언트는 일반 안내로 대체 |
-| 429 | rate_limited | 호출 한도 초과. Retry-After 헤더(대기 초)를 함께 보냄 |
-| 503 | upstream_unavailable | 업스트림 LLM 장애, 한도. Retry-After 뒤 재시도 |
+| 429 | rate_limited | (V1 미구현) 호출 한도를 두지 않아 지금은 나가지 않는다. 한도를 두게 되면 Retry-After 헤더(대기 초)를 함께 보낸다 |
+| 503 | upstream_unavailable | 업스트림 LLM 장애, 한도, BE 장바구니 미연결(11단계 전 개발 중). Retry-After 뒤 재시도 |
 | 504 | generation_timeout | 생성 30초 초과 |
 | 400, 500 | invalid_request, internal_server_error | 형식 오류, 서버 내부 오류 |
 
 **내부 처리 (요청 1건에 끝남)**
 
 1. **입력 검사와 중복 확인**. 형식을 검사하고, 같은 `idempotency_key`가 이미 처리됐으면 저장된 결과를 돌려준다. 쇼핑 요청이 아니면 `not_shopping: true`로 끝낸다.
-2. **tool 반복**. 상한 3번. LLM이 tool을 고르고, 코드가 검사한 뒤 실행하고, 결과를 LLM에 돌려준다. 한 요청에 tool을 여러 개 부를 수 있다. 책은 LLM이 “카드 1번”, “장바구니 2번째”, “지금 보고 있는 책”으로만 가리키고, ISBN과 `user_id`는 코드가 채운다. 가격, 재고, 합계, 책 조합도 코드가 정한다.
+2. **tool 반복**. 시작할 때 로그인한 요청이면 코드가 장바구니를 먼저 읽어, 번호 붙은 목록(번호, 제목, 수량)을 LLM에게 보여 준다. 가격과 합계는 보여 주지 않아서 `cart.view` 결과로만 말한다. 읽지 못하면 건너뛴다. 상한 3번. LLM이 tool을 고르고, 코드가 검사한 뒤 실행하고, 결과를 LLM에 돌려준다. 한 요청에 tool을 여러 개 부를 수 있다. 책은 LLM이 “카드 1번”, “장바구니 2번째”, “지금 보고 있는 책”으로만 가리키고, ISBN과 `user_id`는 코드가 채운다. 가격, 재고, 합계, 책 조합도 코드가 정한다.
 3. **마무리**. 위 “grounding 규칙”으로 답변의 숫자와 행동 서술을 검사하고, `resolved_reference`, `selection`, `buttons`를 조립한다.
 
 코드가 강제하는 규칙:
 
 - 직전 카드와 장바구니 목록에 없는 책은 실행하지 않는다.
 - 어느 책인지 하나로 정해지지 않으면 실행하지 않고 되묻는다.
+- 사용자의 말에 그 책을 가리키는 근거가 없으면 쓰기 tool을 실행하지 않는다. 근거는 그 책의 번호(“1번”, “두 번째”, “맨 위”), 같은 목록의 다른 책 제목에 없는 제목 낱말(맞춘 글자가 세 글자 이상), 전체 표현(“전부”), 목록에 책이 하나뿐인 경우다. 지금 보고 있는 책(`focused_isbn`)은 검사하지 않는다. 막히면 tool 결과에 `REFERENCE_NOT_STATED`가 남는다.
 - `logged_in`이 false면 쓰기 tool을 막는다.
 - 사용자가 책과 행동을 직접 말하면 바로 실행한다. 골라 담기처럼 AI가 고른 조합은 실행하지 않고 `[담기]` 버튼으로 확인받는다.
-- 담기 전에 `cart.view`로 조회한다. 이미 담긴 책이면 담지 않고 알려 준다.
+- 담기 전에 `cart.add` 안에서 BE의 장바구니를 다시 읽는다. 이미 담긴 책이면 담지 않고 `ALREADY_IN_CART`로 알려 준다.
 - 골라 담기는 직전 카드 안에서만 고른다. 권수 조합을 전부 따져 `book.offer`의 가격 합계가 예산 이하이고 `match_score` 합이 최대인 조합을 `selection.pick`이 고른다.
 - 비교에 쓴 소개글은 tool을 고르는 LLM에게 다시 보여 주지 않는다. 소개글 속 지시문이 tool 선택에 섞이지 않게 하기 위해서다.
+
+**tool 결과의 오류 코드**
+
+AI 서버가 BE를 부르기 전에 막거나 하지 않기로 한 것은 `tool_calls[].result`에 `{ "ok": false, "error": "코드" }`로 남는다. 응답은 200이다. BE가 거절한 것(재고 부족, 30권 한도 등)은 BE의 오류 이름을 그대로 `error`에 적는다.
+
+| 코드 | 뜻 |
+|---|---|
+| LOGIN_REQUIRED | 로그인하지 않았는데 쓰기 tool이다 |
+| TOOL_NOT_ALLOWED | 이번 요청의 `allow_tools`에 없는 tool이다 |
+| INVALID_ARGUMENTS | 모르는 칸, 자료형 오류 |
+| BOOK_NOT_IN_CARDS, BOOK_NOT_IN_CART | 직전 카드나 장바구니에 없는 번호다 |
+| CART_NOT_LOADED | 장바구니 목록이 없는데 장바구니 번호를 썼다 |
+| NO_FOCUSED_BOOK | 지금 보고 있는 책이 없다 |
+| AMBIGUOUS_BOOK | 같은 번호가 둘이라 하나로 정해지지 않는다 |
+| REFERENCE_NOT_STATED | 사용자의 말에 그 책을 가리키는 근거가 없다 |
+| ALREADY_IN_CART | 이미 담긴 책이라 담지 않았다 |
+| CONFIRMATION_REQUIRED | AI가 고른 책이라 확인 버튼 없이는 담지 않는다 |
+| NO_COMBINATION | 예산 안에서 그 권수를 채울 조합이 없다 |
 
 </details>
 
@@ -1305,7 +1350,7 @@ flowchart TB
 - **상관관계 ID**: 모든 요청에 X-Request-Id 헤더 권장. 없으면 서버가 만들어 응답 헤더로 돌려줌. 로그를 이어 붙이는 키
 - **상한 초과 처리**: 개수 상한 초과는 N개만 쓰고 200(recent_turns 20, conversation 40, memories 500은 최근 것, liked_book_ids 50은 앞의 것). 항목 길이, 형식, 값 범위 위반과 size 50 초과는 400. 예외. context_cards(최대 10)는 초과 시 400(앞을 자르면 “N번” 해석이 어긋남)
 - **점수 필드**: 사용자에게 보이는 점수는 match_score(0–100)뿐. 인기 집계(판매, 평점, 리뷰 수)는 순위 계산 입력이며 그대로 노출하지 않는다
-- **점수 필드 예외**: 응답에 싣되 사용자에게 노출하지 않는 0–1 값: 취향 추출 confidence, 지시 표현 해석 confidence, 표지 후보 confidence
+- **점수 필드 예외**: 응답에 싣되 사용자에게 노출하지 않는 0–1 값: 취향 추출 confidence, 표지 후보 confidence
 - **축소 알림 헤더**: X-Degraded. 축소 응답일 때만 붙는다. keyword-only(검색), rule-only(피드). BE가 FE로 전달. **값은 이 둘뿐이며 복제 지연·행 부재에는 붙이지 않는다**
 - **축소 알림, 본문**: 챗봇 추천은 헤더 대신 본문 data.degraded로 알림. V2에서 스트리밍하면 200 헤더가 먼저 나가 헤더를 못 붙이기 때문
 - **재시도 헤더**: Retry-After. 429, 503에만
@@ -1321,7 +1366,7 @@ flowchart TB
 - **이력 이중 반영 방지**: 프로필 행의 computed_at(내부 값)은 그 프로필이 **반영한 이력 행들의 최대 시각**이다. ③·④는 그보다 나중의 이력만 채점 때 더한다. 계산 시각이 아니라 반영 시각이라 복제가 늦게 도착한 이력도 빠지지 않는다. 반영한 이력이 없으면 이력 전부를 더한다
 - **이미지 입력**: BE가 올리고 Pre-signed URL을 image_ref로 넘김. AI 서버는 이미지를 저장하지 않음
 - **멱등 키(idempotency key)**: /preferences/profile, /agent/act의 idempotency_key는 같은 규약. 같은 키, 같은 본문 = 저장 결과 200, 같은 키, 다른 본문 = 409. 키, 결과 매핑은 최소 24시간 보관
-- **멱등 키, tool 파생**: 한 턴에 쓰기 tool이 여러 번 나갈 수 있어, BE로 넘기는 tool별 키는 {idempotency_key}:{tool_call_index}(그 턴에서의 순번, 0부터). 턴 전체 재시도는 본문 키로, 개별 쓰기 중복은 파생 키로 막음
+- **멱등 키, tool 파생**: ⑦은 BE로 파생 키를 보내지 않는다. 담기와 수량 변경이 요청 수량으로 바꾸는 방식이라 같은 호출을 두 번 보내도 결과가 같다. 턴 전체 재시도는 본문 키로 막는다(쓰기가 성공한 턴의 응답을 저장해 두었다가, 같은 키로 오면 LLM과 BE를 부르지 않고 그 응답을 돌려준다)
 - **커서, 방식**: 목록 API(검색, 피드)는 커서 방식. 요청 cursor / 응답 next_cursor, 마지막은 null
 - **커서, 불투명**: 서버가 서명한 문자열이라 클라이언트는 해석, 생성하지 않음. 위조, 변조는 410
 - **커서, 전달**: ① 검색은 요청 본문, ④ 피드는 쿼리 파라미터로 싣는다. 쿼리로 보낼 때는 `+`·`/`·`=`가 섞이므로 URL 인코딩한다
@@ -1343,6 +1388,8 @@ flowchart TB
 | open_book | 쇼핑 에이전트 | isbn | 해당 도서 조회 |
 | navigate | 챗봇, 쇼핑 에이전트 | target | 호출자가 정의한 이동 대상 식별자 |
 | dismiss | 챗봇, 쇼핑 에이전트 |  | 제안 닫기 |
+
+⑦이 지금 만드는 버튼은 `confirm_selection`과 `navigate`뿐이다. ⑦의 `confirm_reference`, `reselect`, `open_book`, `dismiss`는 정의만 있고 만들지 않는다(후속). 만들지 말지는 확인 버튼을 눌렀을 때 누가 담는지를 FE, BE와 정할 때 같이 결정한다.
 
 ### 공통 에러 (모든 엔드포인트)
 
