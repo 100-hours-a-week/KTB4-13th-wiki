@@ -848,15 +848,18 @@ centroid = 가중평균( liked 책 문서벡터
 | user_id | int | Y | 사용자 ID. BE 기능을 누구 이름으로 실행할지. LLM이 정하지 않고 요청의 값을 그대로 쓴다 |
 | conversation_id | string | N | 대화 ID. 로그, 중복 대조용. AI는 저장 안 함 |
 | message | string | Y | 이번 턴의 사용자 메시지(1–200자) |
-| context_cards | object[] | N | 직전 턴에 보여준 추천 카드 ¹ |
+| context_cards | object[] | N | 가장 최근에 카드가 보인 묶음 ¹ |
 | focused_isbn | string? | N | 사용자가 지목한 도서의 ISBN-13. 지시 표현 해석에 쓴다 |
 | user_context.logged_in | bool | Y | 로그인 여부. false면 쓰기 tool(담기, 수량 변경, 빼기)을 실행하지 않는다 |
 | allow_tools | string[]? | N | 이번 턴에 허용할 tool 이름. null이면 전부 허용. 위 tool 표에 없는 이름은 400 |
 | idempotency_key | string | Y | 멱등 키(idempotency key) ² |
+| recent_turns | object[] | N | 최근 대화(role, text). 되물은 다음 턴의 답을 푸는 재료 ³ |
 
-¹ “1번, 이거” 같은 지시 표현을 풀고 후보를 고르는 재료. 항목: isbn, rank, match_score. 최대 10개, 초과는 400. 카드의 가격과 재고는 받지 않는다. 가격, 재고는 이번 턴의 tool 결과로만 말한다
+¹ “1번, 이거” 같은 지시 표현을 풀고 후보를 고르는 재료. 호출자는 사용자 화면에서 **가장 최근에 카드가 보인 묶음**을 보낸다. 그 뒤에 카드가 없는 턴(⑦ 등)이 끼어도 마지막으로 보인 묶음을 유지하고, 보인 카드가 없으면 빈 배열이거나 생략한다. 항목: isbn, rank, match_score. 최대 10개, 초과는 400. 카드의 가격과 재고는 받지 않는다. 가격, 재고는 이번 턴의 tool 결과로만 말한다
 
 ² 재시도로 같은 요청이 두 번 와도 장바구니에 두 번 담기지 않게. 읽기만 하는 턴에서는 무시. BE로는 이 키에서 파생한 키를 보내지 않는다. 담기와 수량 변경이 요청 수량으로 바꾸는 방식이라 같은 호출을 두 번 보내도 결과가 같다
+
+³ “1번이요”, “네”처럼 되물은 다음 턴의 답을 직전 말과 이어서 푸는 재료다. ③의 `recent_turns`와 같은 모양이고, 최대 20턴(초과분은 최근 20턴만 쓴다), 한 줄 text는 200자다. 200자를 넘는 줄은 400이 아니라 **뒤쪽 200자만** 쓴다(구현 예정, 지금은 400). 제안과 질문이 말의 끝에 오기 때문이다. 항목 길이 위반을 400으로 하는 5장 ‘상한 초과 처리’의 예외다. ⑦의 답변에는 길이 상한이 없어서 호출자가 그대로 싣으면 200자를 넘을 수 있다
 
 **출력** `200`
 
@@ -940,7 +943,7 @@ centroid = 가중평균( liked 책 문서벡터
 
 ³ **사용자의 말이 가리킨 책**(번호, 그 책만 가리키는 제목 낱말, 지금 보고 있는 책)이 정해질 때만 isbns를 채운다. 어느 책인지 하나로 정해지지 않으면 `null`이고 되묻는 답변을 준다. 되묻기 위해 선택지의 제목을 조회(`book.offer`)했어도 그 책들은 싣지 않는다. 그래서 되물음의 `tool_calls`는 `[]`이거나 조회 기록만 있다
 
-⁴ 지금 만드는 버튼은 `confirm_selection`과 `navigate`뿐이다. `confirm_reference`, `dismiss`, `reselect`, `open_book`은 5장 action 표에 정의만 있고 만들지 않는다(후속). 버튼 없이 되물으면 `buttons`는 `[]`다
+⁴ 지금 만드는 버튼은 `confirm_selection`과 `navigate`뿐이다. `confirm_reference`, `dismiss`, `reselect`, `open_book`은 5장 action 표에 정의만 있고 만들지 않는다(후속). 버튼 없이 되물으면 `buttons`는 `[]`다. `confirm_selection`을 눌렀을 때 누가 담는지는 5장 action 표 아래 설명을 따른다
 
 **grounding 규칙**
 
@@ -1389,7 +1392,9 @@ flowchart TB
 | navigate | 챗봇, 쇼핑 에이전트 | target | 호출자가 정의한 이동 대상 식별자 |
 | dismiss | 챗봇, 쇼핑 에이전트 |  | 제안 닫기 |
 
-⑦이 지금 만드는 버튼은 `confirm_selection`과 `navigate`뿐이다. ⑦의 `confirm_reference`, `reselect`, `open_book`, `dismiss`는 정의만 있고 만들지 않는다(후속). 만들지 말지는 확인 버튼을 눌렀을 때 누가 담는지를 FE, BE와 정할 때 같이 결정한다.
+⑦이 지금 만드는 버튼은 `confirm_selection`과 `navigate`뿐이다. ⑦의 `confirm_reference`, `reselect`, `open_book`, `dismiss`는 정의만 있고 만들지 않는다(후속).
+
+`confirm_selection`을 눌렀을 때 담는 쪽은 호출자다. FE가 버튼의 `isbns`로 BE 장바구니 API를 직접 호출하고, AI 서버는 버튼 클릭을 받지 않는다(⑦ 요청에 버튼 칸이 없다). 서버가 대화를 저장하지 않아 멈췄다가 이어 갈 수 없고, 사용자 본인 세션으로 BE가 확인하는 클릭이 가장 확실한 승인이기 때문이다. AI가 고른 조합은 이 버튼을 누르기 전에는 장바구니에 담지 않는다. FE, BE 확인 대기: 어려우면 알려 주면 다른 방식(⑦ 요청에 확인 칸을 더하고 AI가 LLM 없이 담는 방식)을 검토한다.
 
 ### 공통 에러 (모든 엔드포인트)
 
