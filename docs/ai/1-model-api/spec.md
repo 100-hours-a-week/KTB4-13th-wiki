@@ -642,7 +642,9 @@ GET /recommendations/feed?user_id=123&surface=recommend_more&sort=match
       {
         "type": "mood",
         "value": "이별 후 위로되는 잔잔한 소설을 찾음",
-        "confidence": 0.82,
+        "strength": 1,
+        "applies_to": [],
+        "keyword": "위로되는",
         "vector": [0.01, -0.04, "…"],
         "dim": 384,
         "source_conversation_id": "cv_20260903_a1"
@@ -655,18 +657,24 @@ GET /recommendations/feed?user_id=123&surface=recommend_more&sort=match
 
 | 필드 | 타입 | 설명 |
 |---|---|---|
-| extractions | object[] | 뽑은 취향 사실. 없으면 []. 대화 하나에 최대 5개이고 신뢰도가 높은 순이다 |
+| extractions | object[] | 뽑은 취향 사실. 없으면 []. 대화 하나에 최대 5개이고 세기의 크기가 큰 순이다 |
 | extractions[].type | enum | mood(분위기), topic(주제), author(작가), condition(늘 지키는 조건) |
 | extractions[].value | string | 한두 문장 요약. 200자 이하 |
-| extractions[].confidence | float | 신뢰도 0–1. 0.5 미만은 반환하지 않는다. 호출자의 임계 판정용이다 ¹ |
-| extractions[].vector | float[] | value 문장의 벡터. BE가 함께 저장하고 프로필 계산에 씀 ² |
+| extractions[].strength | int | 세기. -3 이상 3 이하이고 0은 오지 않는다 ¹ |
+| extractions[].applies_to | string[] | 어디에. 이 취향에 해당하는 카테고리·세부 카테고리 이름 3개 이하 ³ |
+| extractions[].keyword | string | 핵심어. 1자 이상 100자 이하 ⁴ |
+| extractions[].vector | float[] | keyword의 벡터. BE가 함께 저장하고 프로필 계산에 씀 ² |
 | extractions[].dim | int | 벡터 길이. 임베딩 API가 돌려주는 값과 같다 |
 | extractions[].source_conversation_id | string | 요청의 conversation_id 그대로 |
 | nothing_found | bool | true면 뽑을 게 없거나 동의 안 함. 이때 extractions는 [] |
 
-¹ 사용자가 직접 말한 취향은 높게, 추천을 부탁한 내용에서 드러난 취향은 그보다 낮게 매긴다
+¹ 양수는 좋아함, 음수는 싫어함이다. 크기는 추천을 부탁하기만 했으면 1, 직접 말했으면 2, 강하게 말했으면 3이다. 싫은 쪽을 부탁하기만 한 것(-1)은 내지 않는다
 
 ² ②의 `purpose: query`와 같은 방식으로 만든다. 책 벡터와 견주는 쪽이기 때문이다
+
+³ topic일 때만 채우고, 맞는 것이 없거나 다른 종류면 []이다. 이름은 온보딩 3·4번 보기와 같고, AI 서버만 쓰는 세부 카테고리도 올 수 있다. BE는 검사하지 않고 저장했다가 ⑥에 그대로 보낸다
+
+⁴ 주제는 그 주제("추리 소설"), 작가는 이름("김영하"), 분위기는 그 말("잔잔한")이다. 책 제목만 말했으면 『』로 감싼다("『불편한 편의점』")
 
 **에러**
 
@@ -1303,7 +1311,7 @@ flowchart TB
 - **상관관계 ID**: 모든 요청에 X-Request-Id 헤더 권장. 없으면 서버가 만들어 응답 헤더로 돌려줌. 로그를 이어 붙이는 키
 - **상한 초과 처리**: 개수 상한 초과는 N개만 쓰고 200(recent_turns 20, conversation 40, memories 500은 최근 것, liked_book_ids 50은 앞의 것). 항목 길이, 형식, 값 범위 위반과 size 50 초과는 400. 예외. context_cards(최대 10)는 초과 시 400(앞을 자르면 “N번” 해석이 어긋남)
 - **점수 필드**: 사용자에게 보이는 점수는 match_score(0–100)뿐. 인기 집계(판매, 평점, 리뷰 수)는 순위 계산 입력이며 그대로 노출하지 않는다
-- **점수 필드 예외**: 응답에 싣되 사용자에게 노출하지 않는 0–1 값: 취향 추출 confidence, 지시 표현 해석 confidence, 표지 후보 confidence
+- **점수 필드 예외**: 응답에 싣되 사용자에게 노출하지 않는 0–1 값: 지시 표현 해석 confidence, 표지 후보 confidence
 - **축소 알림 헤더**: X-Degraded. 축소 응답일 때만 붙는다. keyword-only(검색), rule-only(피드). BE가 FE로 전달. **값은 이 둘뿐이며 복제 지연·행 부재에는 붙이지 않는다**
 - **축소 알림, 본문**: 챗봇 추천은 헤더 대신 본문 data.degraded로 알림. V2에서 스트리밍하면 200 헤더가 먼저 나가 헤더를 못 붙이기 때문
 - **재시도 헤더**: Retry-After. 429, 503에만
