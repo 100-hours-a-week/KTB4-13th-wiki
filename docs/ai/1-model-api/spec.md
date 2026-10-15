@@ -4,7 +4,7 @@ type: spec
 group: ai-1
 owner: 김세훈
 status: 작성중
-updated: 2026-10-12
+updated: 2026-10-16
 sources:
   - 모델-API-설계.md
 limit_exempt: 원본 8개 엔드포인트의 필드표·에러표·규칙 문장을 자르지 않고 전부 보존 (변환 문서)
@@ -715,12 +715,20 @@ GET /recommendations/feed?user_id=123&surface=recommend_more&sort=match
     {
       "type": "author",
       "value": "김영하의 문장을 좋아함",
+      "strength": 2,
+      "applies_to": [],
+      "keyword": "김영하",
+      "created_at": "2026-09-04T00:12:30.123456",
       "vector": [0.02, -0.01, "…"],
       "dim": 384
     },
     {
       "type": "mood",
       "value": "이별 후 위로되는 잔잔한 소설을 찾음",
+      "strength": 1,
+      "applies_to": [],
+      "keyword": "위로되는",
+      "created_at": "2026-09-04T00:12:30.123457",
       "vector": [0.01, -0.04, "…"],
       "dim": 384
     }
@@ -738,15 +746,28 @@ GET /recommendations/feed?user_id=123&surface=recommend_more&sort=match
 | onboarding.categories | string[] | N | 관심 대분류(앱 화면 값). 최대 3개. ①④ 필터의 category와 같은 값이다. 카탈로그 분류와는 대응표로 잇고, 대응표에 없는 값은 건너뛴다 |
 | onboarding.tags | string[] | N | 세부 태그. 최대 9개 |
 | onboarding.liked_book_ids | int[] | N | 마음에 드는 책 ID. 0권 가능, 상한 없음. 서버는 앞 50권만 씀 |
-| memories | object[] | N | 저장된 취향 기억 전체 {type, value, vector, dim} ³ |
+| memories | object[] | N | 저장된 취향 기억 전체. 사용자가 지운 것은 빼고 보낸다 ³ |
+| memories[].type | enum | Y | ⑤가 준 값(mood, topic, author, condition) |
+| memories[].value | string | Y | ⑤가 준 값 |
+| memories[].strength | int | Y | ⑤가 준 세기. -3 이상 3 이하, 0이 아님 |
+| memories[].applies_to | string[] | Y | ⑤가 준 어디에. 3개 이하, 빈 목록 가능 ⁴ |
+| memories[].keyword | string | Y | ⑤가 준 핵심어. 1자 이상 100자 이하 |
+| memories[].created_at | string | Y | 취향 기억 표의 created_at 그대로 ⁵ |
+| memories[].vector | float[] | Y | ⑤가 준 핵심어의 벡터. 길이는 dim과 같다 |
+| memories[].dim | int | Y | 벡터 길이 |
 
 ¹ 같은 키, 같은 본문이면 다시 계산하지 않고 저장 결과를 200으로 반환. 응답이 유실돼 재시도해도 프로필이 두 번 바뀌지 않게
 
 ² 매번 처음부터 다시 만들기 때문에 기억만 바뀌어도 온보딩 응답을 다시 보냄. 건너뛴 사용자는 {}
 
-³ 매번 전체를 보내 처음부터 다시 계산. 작가 취향은 이 경로로만 들어옴(type: author). 최대 500건(넘으면 최근 500건만)
+³ 매번 전체를 보내 처음부터 다시 계산. 작가 취향은 이 경로로만 들어옴(type: author). 최대 500건(넘으면 created_at이 최근인 500건만). 보내는 순서는 상관없다
+
+⁴ 서버가 모르는 이름이면 그 이름만 건너뛰고 400이 아니다
+
+⁵ 날짜·시각(한국 시간). 예: `2026-09-04T00:12:30.123456`. 소수점 아래는 없어도 된다. 같은 관심사를 좋아한다고도 싫다고도 했을 때 어느 쪽이 나중인지 가리는 데 쓴다. 같은 밤에 저장된 줄끼리도 가려야 해서 마이크로초까지 보낸다
 
 - memories[].dim이 서버가 쓰는 벡터 인덱스 차원과 다르면 400 invalid_request로 거절한다.
+- memories[]의 strength가 범위 밖이거나 0, applies_to가 4개 이상, keyword가 비었거나 100자를 넘음, created_at이 날짜·시각 모양이 아니면 400 invalid_request로 거절한다.
 - 이력은 요청 필드가 아니라 복제 테이블에서 읽으므로, 같은 `idempotency_key`에 같은 본문이어도 그 사이 구매가 생겼거나 복제가 도착하면 결과가 달라질 수 있다. 멱등 규약은 **재계산을 건너뛰고 저장된 결과를 그대로 돌려주는 것**이라 이 경우에도 응답은 일관된다.
 
 **출력** `200`
@@ -809,7 +830,7 @@ centroid = 가중평균( liked 책 문서벡터
 
 | 상태 | message | 언제 |
 |---|---|---|
-| 400 | invalid_request | 형식 오류, onboarding 누락, 배열 상한 초과(reading_times 5, criteria 3, categories 3, tags 9), memories[].dim 불일치 |
+| 400 | invalid_request | 형식 오류, onboarding 누락, 배열 상한 초과(reading_times 5, criteria 3, categories 3, tags 9), memories[].dim 불일치, memories[] 칸 위반 |
 | 401 | unauthorized | 서비스 토큰 없음, 불일치 |
 | 409 | idempotency_conflict | 같은 idempotency_key에 다른 본문. 재시도 중단 |
 | 413 | payload_too_large | 요청 본문이 8MB 초과 |
