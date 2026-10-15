@@ -569,7 +569,7 @@ GET /recommendations/feed?user_id=123&surface=recommend_more&sort=match
 | items[].author | string? | 저자. 카탈로그에 값이 없는 도서는 null |
 | items[].price, .in_stock | int?, bool | 판매가(원), 재고 여부. 상품이 없는 도서는 null, false |
 | items[].cover_url | string? | 표지 이미지 URL. 없는 도서는 null |
-| items[].match_score | int | 규칙 점수와 취향 유사도의 가중합, 0–100. 정렬과 필터에 쓴다. cold_start가 true면 0 |
+| items[].match_score | int | 취향 매칭 점수 0–100 ². 정렬과 필터에 쓴다. cold_start가 true면 0 |
 | next_cursor | string? | 다음 페이지 커서. 마지막이면 null |
 | cold_start | bool | true면 취향 정보가 없어 개인화를 끄고, 판매 수 있는 도서를 색인 순서로 먼저·나머지는 신간순으로 이어 붙여 채움(최대 500권) |
 
@@ -591,6 +591,8 @@ GET /recommendations/feed?user_id=123&surface=recommend_more&sort=match
 | 200 | feed_success, X-Degraded: rule-only | 벡터 조회 불가 ¹ |
 
 ¹ 취향 유사도를 빼고 규칙 기반 점수만으로 정렬한다. 남은 비중을 1로 재분배하지 않아 match_score는 최대 40점이다. 벡터 인덱스 이상과 모델 교체 구간에만 나온다. `centroid`가 없으면 이 값이 아니라 `cold_start: true`이고, 복제 지연·행 부재도 해당하지 않는다
+
+² 그 책을 뽑은 관심사와의 취향 유사도(60%)와, 그 관심사가 목록에서 받은 자리의 몫(25%)을 합친다. 인기(15%)는 아직 더하지 않아 최고 85점이다. 홈과 더 보기가 같은 점수를 읽는다(AI #448)
 
 </details>
 
