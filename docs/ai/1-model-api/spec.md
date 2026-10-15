@@ -4,7 +4,7 @@ type: spec
 group: ai-1
 owner: 김세훈
 status: 작성중
-updated: 2026-10-12
+updated: 2026-10-16
 sources:
   - 모델-API-설계.md
 limit_exempt: 원본 8개 엔드포인트의 필드표·에러표·규칙 문장을 자르지 않고 전부 보존 (변환 문서)
@@ -602,6 +602,7 @@ GET /recommendations/feed?user_id=123&surface=recommend_more&sort=match
 
 - 사용자가 자기가 읽으려고 찾거나 좋아한다고 말한 분위기, 주제, 작가, 늘 지키는 조건을 뽑는다. 좋아한다고 직접 말하지 않고 추천을 부탁하기만 해도 뽑는다.
 - 싫어하거나 읽지 않는다고 말한 것도 뽑는다.
+- 이미 저장된 취향인지는 보지 않는다. 같은 취향을 다른 날 또 말하면 또 뽑는다.
 - 남에게 줄 책, 제목으로 찾은 책 한 권, 가격·출간 연도·배송 같은 조건은 뽑지 않는다.
 - "오늘은", "이번 달은"처럼 이번만이라고 밝힌 것과 말했다가 거둔 것은 뽑지 않는다.
 - 챗봇만 말하고 사용자가 받아들이지 않은 것은 뽑지 않는다.
@@ -619,10 +620,7 @@ GET /recommendations/feed?user_id=123&surface=recommend_more&sort=match
     { "role": "assistant", "text": "잔잔한 소설 위주로 골라봤어요." },
     { "role": "user", "text": "이별 후에 위로가 될 만한 걸로" }
   ],
-  "conversation_id": "cv_20260903_a1",
-  "existing_preferences": [
-    { "type": "mood", "value": "잔잔한 에세이를 선호함" }
-  ]
+  "conversation_id": "cv_20260903_a1"
 }
 ```
 
@@ -632,7 +630,7 @@ GET /recommendations/feed?user_id=123&surface=recommend_more&sort=match
 | consented | bool | Y | 개인화 추천에 동의했는지(③과 같은 값). false면 뽑지 않고 nothing_found: true |
 | conversation | object[] | Y | 대화 세션 한 개의 전체 턴(role, text). 최대 40턴(초과분은 최근 40턴만 사용), text 각 4,000자 이하, 빈 목록이면 뽑지 않고 nothing_found: true |
 | conversation_id | string | Y | 세션 ID(200자 이하). 뽑은 취향의 출처로 기록하고, 세션을 다시 처리하면 이 ID로 이전 결과를 교체 |
-| existing_preferences | object[] | N | 이미 저장된 취향 전체({type, value}). 같은 취향을 또 뽑지 않기 위해 보냄 |
+| existing_preferences | object[] | N | 쓰지 않는다. 보내도 무시하며 400이 아니다 |
 
 **출력** `200`
 
@@ -664,7 +662,7 @@ GET /recommendations/feed?user_id=123&surface=recommend_more&sort=match
 | extractions[].vector | float[] | value 문장의 벡터. BE가 함께 저장하고 프로필 계산에 씀 ² |
 | extractions[].dim | int | 벡터 길이. 임베딩 API가 돌려주는 값과 같다 |
 | extractions[].source_conversation_id | string | 요청의 conversation_id 그대로 |
-| nothing_found | bool | true면 뽑을 게 없거나 전부 이미 있거나 동의 안 함. 이때 extractions는 [] |
+| nothing_found | bool | true면 뽑을 게 없거나 동의 안 함. 이때 extractions는 [] |
 
 ¹ 사용자가 직접 말한 취향은 높게, 추천을 부탁한 내용에서 드러난 취향은 그보다 낮게 매긴다
 
