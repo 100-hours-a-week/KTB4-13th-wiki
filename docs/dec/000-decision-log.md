@@ -4,12 +4,13 @@ type: decision-log
 group: dec-000
 owner: 김세훈
 status: 작성중
-updated: 2026-10-12
+updated: 2026-10-16
 ---
 **요약** 프로젝트의 모든 기술 결정을 한 줄씩 모은 입구. 상세는 링크를 따라간다.
 
 | 날짜 | 파트 | 결정 | 영향 파트 | 상세 |
 |---|---|---|---|---|
+| 10-16 | AI | ⑤ 신뢰도를 세기로 바꾸고 어디에·핵심어를 더한다(AI #395) | AI, BE | [모델 API 명세 ⑤](../ai/1-model-api/spec.md) |
 | 10-12 | AI | ⑤는 추천을 부탁하기만 한 내용도 취향으로 뽑고, 문장은 200자 이하(AI #341) | AI | [모델 API 명세 ⑤](../ai/1-model-api/spec.md) |
 | 10-12 | AI | ⑦ 골라 담기는 직전 카드 안에서만 고르고, 이미 담긴 책은 담지 않고 알려 준다(AI #344) | AI, BE, FE | [모델 API 명세 ⑦](../ai/1-model-api/spec.md) |
 | 09-30 | AI | ③⑤ `consented`는 온보딩의 개인화 추천 동의와 같은 값 | AI, BE, FE | [모델 API 명세 ③](../ai/1-model-api/spec.md) |
