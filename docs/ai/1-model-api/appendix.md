@@ -315,12 +315,6 @@ curl -X POST https://ai.internal.bookjeok.com/agent/act \
     "not_shopping": false,
     "tool_calls": [
       {
-        "name": "cart.view",
-        "arguments": {},
-        "result": { "items": [] },
-        "grounded": true
-      },
-      {
         "name": "cart.add",
         "arguments": { "isbn": "9788900000011", "quantity": 1 },
         "result": { "ok": true },
@@ -339,7 +333,7 @@ curl -X POST https://ai.internal.bookjeok.com/agent/act \
 }
 ```
 
-담기 전에 장바구니를 조회해 이미 담긴 책인지 확인한다. 담기가 요청 수량으로 바꾸는 방식이라서, 이미 담긴 책을 담으면 수량이 줄 수 있기 때문이다.
+담기 전에 BE의 장바구니를 다시 읽어 이미 담긴 책인지 확인한다(`cart.add` 안에서 하며 `tool_calls`에는 따로 남지 않는다). 담기가 요청 수량으로 바꾸는 방식이라서, 이미 담긴 책을 담으면 수량이 줄 수 있기 때문이다.
 
 ### 예시 9: 서버 상태 점검 `GET /health`
 
