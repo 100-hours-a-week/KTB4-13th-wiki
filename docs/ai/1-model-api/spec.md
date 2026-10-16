@@ -264,7 +264,7 @@ limit_exempt: 원본 8개 엔드포인트의 필드표·에러표·규칙 문장
 **처리(참고)**
 
 1. 이번 메시지로 spec을 갱신한다. LLM이 한다
-2. 갱신된 spec으로 후보 10권을 뽑는다. 키워드와 벡터 순위를 합치고 취향 유사도로 점수를 매긴다. 취향은 취향 프로필에 **프로필이 반영한 이력 이후에 생긴 이력**(구매, 담기, 리뷰)을 더한 것이고, 인기는 `v_book_popularity`에서 읽는다. 이미 산 책과 별점 1–2점을 준 책은 후보에서 뺀다
+2. 갱신된 spec으로 후보 10권을 뽑는다. 키워드와 벡터 순위를 합치고 취향 유사도로 점수를 매긴다. 취향은 취향 프로필에 **프로필이 반영한 이력 이후에 생긴 이력**(구매, 담기, 리뷰)을 더한 것이고, 인기는 `v_book_popularity`에서 읽는다. 산 책과 나의 도서관 책은 후보에서 뺀다. 요청에 `purchased_isbns`, `library_isbns`가 오지 않으면 복제 테이블에서 산 책과 별점 1–2점을 준 책을 뺀다
 3. LLM이 후보 중 3권을 고르고 카드마다 한 줄 이유(`reason_short`), 긴 이유(`reason_long`), 근거(`match_basis`)를 **한 번의 호출로** 쓴다. 고른 순서가 곧 rank이며,  
     match_score는 후보 점수 그대로라 내림차순이 아닐 수 있다
 4. 한 줄 이유를 못 만든 책은 뺀다. 그래서 3장보다 적을 수 있다. 긴 이유만 비면 카드는 남기고 `reason_long: null`로 둔다(BE는 상세 페이지의 이유 영역을 숨긴다)
@@ -280,7 +280,10 @@ LLM 장애면 1과 3을 건너뛰고 요청의 spec으로 2만 돌려 점수 상
   "spec": { "…": "현재 추천 조건(6키 전체)" },
   "message": "너무 무겁지 않은 걸로",
   "recent_turns": [{ "role": "user", "text": "비 오는 날 읽을 책 추천해줘" }],
-  "exclude_book_ids": [4021],
+  "exclude_book_ids": [],
+  "exclude_isbns": ["9788900000042"],
+  "purchased_isbns": ["9788900000035"],
+  "library_isbns": [],
   "image_ref": null
 }
 ```
@@ -292,7 +295,10 @@ LLM 장애면 1과 3을 건너뛰고 요청의 spec으로 2만 돌려 점수 상
 | spec | object | Y | spec(추천 조건 객체, 6개 키) ¹ |
 | message | string | N | 이번 턴의 사용자 메시지 ² |
 | recent_turns | object[] | N | 최근 대화(role, text) ³ |
-| exclude_book_ids | int[] | N | 이 대화에서 이미 보여준 도서 ID. 같은 책이 또 나오지 않게 검색에서 제외(사용자가 뺀 spec.exclude와 합쳐서) |
+| exclude_book_ids | int[] | N | 이 대화에서 이미 보여준 도서 ID. 같은 책이 또 나오지 않게 검색에서 제외(사용자가 뺀 spec.exclude와 합쳐서) ⁶ |
+| exclude_isbns | string[] | N | 이 대화에서 이미 보여준 도서의 ISBN-13. exclude_book_ids와 합쳐서 제외 ⁶ |
+| purchased_isbns | string[]? | N | 산 책(결제 완료)의 ISBN-13. 후보에서 뺀다 ⁷ |
+| library_isbns | string[]? | N | 나의 도서관에 담은 책의 ISBN-13. 후보에서 뺀다 ⁷ |
 | image_ref | string? | N | (V2) 표지 사진의 Pre-signed URL(BE가 업로드 후 발급) ⁴ |
 
 ¹ 서버가 대화를 저장하지 않으므로 클라이언트가 직전 응답의 spec을 그대로 돌려보내야 대화가 이어짐(V2는 BE가 보관). 첫 턴은 초기 spec
@@ -305,6 +311,10 @@ LLM 장애면 1과 3을 건너뛰고 요청의 spec으로 2만 돌려 점수 상
 
 ⁵ V1에서는 동작에 영향 없음. 개인화는 취향 프로필 유무로 판단한다(AI #266). V2에서 false면 대화에서 취향을 뽑지 않는다
 
+⁶ 책 번호를 ISBN으로 옮기는 중이라 두 칸을 다 받는다(AI #317). 다 옮기면 exclude_book_ids를 뺀다. ISBN은 13자리 숫자 문자열이고 형식이 틀리면 400이다. 책 표에 없는 ISBN은 건너뛴다
+
+⁷ BE가 요청마다 싣는다(AI #319). **칸이 없거나 null인 것과 빈 목록 []은 뜻이 다르다.** 두 칸이 모두 없거나 null이면 아직 보내지 않는 것으로 보고 복제 테이블의 이력으로 뺀다. 빈 목록은 가진 책이 없다는 뜻이라 복제 테이블을 읽지 않는다. 그래서 목록을 채우기 전에 []부터 보내면 산 책이 다시 추천된다. 별점 1–2점을 준 책은 따로 받지 않는다. 리뷰는 산 책에만 달 수 있어 산 책 목록에 들어 있다. 형식과 책 표에 없는 ISBN은 ⁶과 같다. 목록 개수 상한은 아직 정하지 않았다(BE #252). 요청 본문은 64KB까지이고 넘으면 413이다
+
 **`spec` 스키마**. 서버가 이 형식을 검증한다.
 
 ```json
@@ -313,8 +323,7 @@ LLM 장애면 1과 3을 건너뛰고 요청의 spec으로 2만 돌려 점수 상
   "exact": { "title": null, "author": null, "publisher": null },
   "filters": {
     "category": "에세이",
-    "price_max": 20000,
-    "in_stock_only": true
+    "price_max": 20000
   },
   "semantic": "비 오는 날 카페에서 읽을 잔잔한 책",
   "anchor_book": null,
@@ -328,10 +337,12 @@ LLM 장애면 1과 3을 건너뛰고 요청의 spec으로 2만 돌려 점수 상
 |---|---|---|---|
 | intent | enum | Y | exact(제목, 저자를 지정한 요청), semantic(분위기, 상황 요청) |
 | exact.title, .author, .publisher | string? | Y | 지정된 제목, 저자, 출판사. 없으면 null |
-| filters | object | Y | 검색 API와 같은 필터 키. 재고 조건은 in_stock_only |
+| filters | object | Y | 검색 API와 같은 필터 키. 재고 조건(in_stock_only)은 실려 와도 무시한다 |
 | semantic | string? | Y | 분위기, 상황 설명 문장 |
 | anchor_book | int? | Y | 기준 도서 ID(“이 책과 비슷한”). 이미지 턴에서 인식된 책이 들어감 |
 | exclude | int[] | Y | 사용자가 직접 뺀 도서 ID |
+
+`anchor_book`과 `exclude`는 ISBN으로 옮기지 않고 도서 ID 그대로 둔다. AI가 만들어 응답에 싣고 호출자가 다음 요청에 그대로 되돌려 보내는 값이라 BE가 해석하지 않는다(AI #317).
 
 **초기 spec**. 새 스레드의 첫 턴, 그리고 422 이후 초기화할 때 BE가 보내는 값이다.
 
@@ -358,6 +369,7 @@ LLM 장애면 1과 3을 건너뛰고 요청의 spec으로 2만 돌려 점수 상
     "cards": [
       {
         "book_id": 1088,
+        "isbn": "9788900000011",
         "rank": 1,
         "match_score": 87,
         "title": "달러구트 꿈 백화점",
@@ -454,6 +466,7 @@ LLM 장애면 1과 3을 건너뛰고 요청의 spec으로 2만 돌려 점수 상
 | spec | object | 업데이트된 spec(6개 키). 다음 턴 요청에 그대로 싣는다 |
 | cards | object[] | 추천 카드 최대 3장, 배열 순서가 순위 ¹ |
 | cards[].book_id | int | 도서 ID |
+| cards[].isbn | string? | ISBN-13. 책 표에 ISBN이 없는 도서는 null ⁵ |
 | cards[].rank | int | 추천 순위 1–3. 배열 순서와 같다 |
 | cards[].match_score | int | 매칭 점수 0–100 ² |
 | cards[].title | string | 제목 |
@@ -479,9 +492,11 @@ LLM 장애면 1과 3을 건너뛰고 요청의 spec으로 2만 돌려 점수 상
 
 ⁴ 항목: book_id, title, author, cover_url, confidence(0–1, 내부 판정용). 그 외 []
 
+⁵ 책 번호를 ISBN으로 옮기는 중이라 book_id와 함께 싣는다(AI #317). 다 옮기면 book_id를 뺀다
+
 - **긴 이유는 이 응답이 마지막 생성 지점이다.** AI 서버는 카드를 캐시하지 않으므로, BE가 `reason_long`을 카드와 함께 보관했다가 상세 페이지에서 그대로 보여준다. 같은 책을 다시 상세로 열어도 AI를 부르지 않는다.
 - 두 이유는 같은 근거(`match_basis`)에서 나온다. 한 줄 이유는 카드 한 줄, 긴 이유는 그 근거를 질의와 취향에 붙여 2–4문장으로 푼 것이다.
-- **이력과 인기는 요청에 담기지 않는다.** 서버가 `user_id`로 `v_user_purchases`, `v_user_library`, `v_user_reviews`를, book_id로 `v_book_popularity`를 복제 테이블에서 직접 읽는다. 호출자가 모아 보낼 것이 없다. 복제 지연만큼 값이 늦게 반영될 수 있으며 그건 오류가 아니다(ERD §3 신선도 예산).
+- **가진 책은 요청으로 받고, 인기는 요청에 담기지 않는다.** 산 책과 나의 도서관 책은 BE가 `purchased_isbns`, `library_isbns`로 싣는다(입력 ⁷). 두 칸이 오지 않는 동안은 서버가 `user_id`로 `v_user_purchases`, `v_user_library`, `v_user_reviews`를 복제 테이블에서 읽는다. 인기는 book_id로 `v_book_popularity`를 복제 테이블에서 읽는다. 복제 지연만큼 값이 늦게 반영될 수 있으며 그건 오류가 아니다(ERD §3 신선도 예산).
 - 표지를 읽지 못한 경우와 읽었으나 카탈로그에 없는 경우를 구분하지 않는다. 두 경우 모두 같은 안내 reply를 반환한다.
 
 **에러**
@@ -494,7 +509,7 @@ LLM 장애면 1과 3을 건너뛰고 요청의 spec으로 2만 돌려 점수 상
 | 429 | rate_limited | 호출 한도 초과. Retry-After 헤더(대기 초)를 함께 보냄 |
 | 500 | internal_server_error | 서버 내부 오류 |
 | 404 | image_not_found | (V2) image_ref로 이미지를 못 찾음(URL 만료 포함) |
-| 413 | payload_too_large | (V2) 이미지 10MB 초과. 재촬영, 압축 안내 |
+| 413 | payload_too_large | 요청 본문 64KB 초과. (V2) 이미지 10MB 초과면 재촬영, 압축 안내 |
 | 422 | image_unreadable | (V2) 이미지가 깨졌거나 JPG, PNG 외 형식 |
 
 </details>
