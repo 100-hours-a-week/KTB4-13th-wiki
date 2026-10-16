@@ -13,6 +13,7 @@ updated: 2026-10-16
 | 10-16 | AI | ⑤ 신뢰도를 세기로 바꾸고 어디에·핵심어를 더한다(AI #395) | AI, BE | [모델 API 명세 ⑤](../ai/1-model-api/spec.md) |
 | 10-16 | AI | ⑥ 요청의 취향 기억에 세기·어디에·핵심어·저장한 때를 싣는다(AI #395) | AI, BE | [모델 API 명세 ⑥](../ai/1-model-api/spec.md) |
 | 10-16 | AI | ⑨ 대체 자리 다시 뽑기를 BE 밤 배치 맨 끝에 부른다(AI #395) | AI, BE | [모델 API 명세 ⑨](../ai/1-model-api/spec.md) |
+| 10-15 | AI | 추천과 쇼핑을 가르는 일은 AI 서버가 하고 BE는 ③ 챗봇 입구만 부른다. 응답의 `route`로 구분한다(AI #413) | AI, BE, FE | [모델 API 명세 ③](../ai/1-model-api/spec.md) |
 | 10-14 | AI | ⑦ 확인 버튼은 FE가 BE 장바구니 API로 직접 담는다(FE, BE 확인 대기, AI #396) | AI, BE, FE | [모델 API 명세 ⑦](../ai/1-model-api/spec.md) |
 | 10-14 | AI | ⑦ `context_cards`는 가장 최근에 카드가 보인 묶음을 보낸다(AI #396) | AI, BE, FE | [모델 API 명세 ⑦](../ai/1-model-api/spec.md) |
 | 10-14 | AI | ⑦ `recent_turns`의 200자 초과 줄은 400 대신 뒤쪽 200자만 쓴다(구현 예정, AI #396) | AI, BE, FE | [모델 API 명세 ⑦](../ai/1-model-api/spec.md) |
