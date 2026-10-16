@@ -736,12 +736,20 @@ GET /recommendations/feed?user_id=123&surface=recommend_more&sort=match
     {
       "type": "author",
       "value": "김영하의 문장을 좋아함",
+      "strength": 2,
+      "applies_to": [],
+      "keyword": "김영하",
+      "created_at": "2026-09-04T00:12:30.123456",
       "vector": [0.02, -0.01, "…"],
       "dim": 384
     },
     {
       "type": "mood",
       "value": "이별 후 위로되는 잔잔한 소설을 찾음",
+      "strength": 1,
+      "applies_to": [],
+      "keyword": "위로되는",
+      "created_at": "2026-09-04T00:12:30.123457",
       "vector": [0.01, -0.04, "…"],
       "dim": 384
     }
@@ -759,15 +767,28 @@ GET /recommendations/feed?user_id=123&surface=recommend_more&sort=match
 | onboarding.categories | string[] | N | 관심 대분류(앱 화면 값). 최대 3개. ①④ 필터의 category와 같은 값이다. 카탈로그 분류와는 대응표로 잇고, 대응표에 없는 값은 건너뛴다 |
 | onboarding.tags | string[] | N | 세부 태그. 최대 9개 |
 | onboarding.liked_book_ids | int[] | N | 마음에 드는 책 ID. 0권 가능, 상한 없음. 서버는 앞 50권만 씀 |
-| memories | object[] | N | 저장된 취향 기억 전체 {type, value, vector, dim} ³ |
+| memories | object[] | N | 저장된 취향 기억 전체. 사용자가 지운 것은 빼고 보낸다 ³ |
+| memories[].type | enum | Y | ⑤가 준 값(mood, topic, author, condition) |
+| memories[].value | string | Y | ⑤가 준 값 |
+| memories[].strength | int | Y | ⑤가 준 세기. -3 이상 3 이하, 0이 아님 |
+| memories[].applies_to | string[] | Y | ⑤가 준 어디에. 3개 이하, 빈 목록 가능 ⁴ |
+| memories[].keyword | string | Y | ⑤가 준 핵심어. 1자 이상 100자 이하 |
+| memories[].created_at | string | Y | 취향 기억 표의 created_at 그대로 ⁵ |
+| memories[].vector | float[] | Y | ⑤가 준 핵심어의 벡터. 길이는 dim과 같다 |
+| memories[].dim | int | Y | 벡터 길이 |
 
 ¹ 같은 키, 같은 본문이면 다시 계산하지 않고 저장 결과를 200으로 반환. 응답이 유실돼 재시도해도 프로필이 두 번 바뀌지 않게
 
 ² 매번 처음부터 다시 만들기 때문에 기억만 바뀌어도 온보딩 응답을 다시 보냄. 건너뛴 사용자는 {}
 
-³ 매번 전체를 보내 처음부터 다시 계산. 작가 취향은 이 경로로만 들어옴(type: author). 최대 500건(넘으면 최근 500건만)
+³ 매번 전체를 보내 처음부터 다시 계산. 작가 취향은 이 경로로만 들어옴(type: author). 최대 500건(넘으면 created_at이 최근인 500건만). 보내는 순서는 상관없다
+
+⁴ 서버가 모르는 이름이면 그 이름만 건너뛰고 400이 아니다
+
+⁵ 날짜·시각(한국 시간). 예: `2026-09-04T00:12:30.123456`. 소수점 아래는 없어도 된다. 같은 관심사를 좋아한다고도 싫다고도 했을 때 어느 쪽이 나중인지 가리는 데 쓴다. 같은 밤에 저장된 줄끼리도 가려야 해서 마이크로초까지 보낸다
 
 - memories[].dim이 서버가 쓰는 벡터 인덱스 차원과 다르면 400 invalid_request로 거절한다.
+- memories[]의 strength가 범위 밖이거나 0, applies_to가 4개 이상, keyword가 비었거나 100자를 넘음, created_at이 날짜·시각 모양이 아니면 400 invalid_request로 거절한다.
 - 이력은 요청 필드가 아니라 복제 테이블에서 읽으므로, 같은 `idempotency_key`에 같은 본문이어도 그 사이 구매가 생겼거나 복제가 도착하면 결과가 달라질 수 있다. 멱등 규약은 **재계산을 건너뛰고 저장된 결과를 그대로 돌려주는 것**이라 이 경우에도 응답은 일관된다.
 
 **출력** `200`
@@ -804,9 +825,9 @@ centroid = 가중평균( liked 책 문서벡터
 |---|---|---|
 | 좋아한 책 (liked_book_ids) | 책 적재 때 만든 벡터 재사용 | 이미 있음 |
 | 구매, 도서관, 리뷰 책 (이력 3종) | 같은 도서 임베딩 재사용 | 이미 있음 |
-| 관심 작가 (memories type: author) | 기억 문장 벡터 그대로 (`memories[].vector`) | 야간 배치, 문장당 1번 |
+| 관심 작가 (memories type: author) | 기억 핵심어 벡터 그대로 (`memories[].vector`) | 야간 배치, 줄당 1번 |
 | 관심 카테고리, 태그 | 종류가 적어 미리 벡터로 | 미리 만들어 둠 |
-| 기억 문장 | 취향 추출 때 벡터로 | 야간 배치, 문장당 1번 |
+| 기억 핵심어 | 취향 추출 때 벡터로 | 야간 배치, 줄당 1번 |
 | reading_times, criteria | 벡터 없음. 태그 신호로만(V1 미구현: 받기만 하고 쓰지 않는다) |  |
 
 **이력 가중치**. 카테고리 점수와 centroid 가중평균에 같은 값을 쓴다.
@@ -822,6 +843,7 @@ centroid = 가중평균( liked 책 문서벡터
 ¹ 2.0점 이하. centroid 재료에서는 빼고(가중평균에 넣지 않는다) 그 책 자체는 추천에서 제외한다. 카테고리 점수는 책마다 큰 값 하나라, 산 책이면 구매 점수가 남는다(AI #103)
 
 - 같은 책이 여러 테이블에 있으면(구매한 책에 리뷰까지 쓴 경우) **가장 큰 가중치 하나만** 쓴다. 더하지 않는다.
+- 취향 기억은 좋아함 줄만 centroid에 섞는다. 세기가 양수이고 조건이 아니며, 그 뒤에 같은 관심사를 피한다고 하지 않은 줄이다. 핵심어 벡터에는 좋고 싫음이 담기지 않기 때문이다(AI #395).
 - 이력이 하나도 없고 온보딩도 건너뛰었으면 `cold_start: true`다. 구매나 리뷰가 하나라도 있으면 개인화를 켠다.
 - **`computed_at`은 응답에 나가지 않는 내부 값이다.** 프로필이 **실제로 반영한 이력 행들의 최대 시각**을 저장해 두고, ③·④가 채점할 때 그보다 나중의 이력만 골라 점수에 더한다(같은 가중치 표). 프로필을 다시 만들지 않아도 방금 산 책이 다음 추천에 반영되고, 이미 녹아든 이력을 두 번 더하지 않는다. 보정은 AI 서버 안에서 끝나 호출자가 할 일은 없다.
 - **계산 시각이 아니라 반영 시각이어야 한다.** 이력을 복제 테이블에서 읽으므로 계산 시점에 아직 도착하지 않은 이력이 있을 수 있는데, 계산 시각을 기준으로 삼으면 그 이력이 프로필에도 가산 대상에도 없어 **영구히 누락된다.** 반영한 이력이 없으면 값이 비고 그때는 이력 전부를 가산한다.
@@ -830,7 +852,7 @@ centroid = 가중평균( liked 책 문서벡터
 
 | 상태 | message | 언제 |
 |---|---|---|
-| 400 | invalid_request | 형식 오류, onboarding 누락, 배열 상한 초과(reading_times 5, criteria 3, categories 3, tags 9), memories[].dim 불일치 |
+| 400 | invalid_request | 형식 오류, onboarding 누락, 배열 상한 초과(reading_times 5, criteria 3, categories 3, tags 9), memories[].dim 불일치, memories[] 칸 위반 |
 | 401 | unauthorized | 서비스 토큰 없음, 불일치 |
 | 409 | idempotency_conflict | 같은 idempotency_key에 다른 본문. 재시도 중단 |
 | 413 | payload_too_large | 요청 본문이 8MB 초과 |
