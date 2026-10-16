@@ -67,7 +67,7 @@ curl -X POST https://ai.internal.bookjeok.com/embeddings \
 ```bash
 curl -X POST https://ai.internal.bookjeok.com/recommendations/chat \
   -H "Authorization: Bearer $SERVICE_TOKEN" -H "Content-Type: application/json" \
-  -d '{"user_id":123,"consented":true,"spec":{"intent":"semantic","exact":{"title":null,"author":null,"publisher":null},"filters":{},"semantic":"퇴근길에 읽을 짧은 소설","anchor_book":null,"exclude":[]},"message":"유머 있으면 좋겠어","recent_turns":[],"exclude_book_ids":[],"image_ref":null}'
+  -d '{"user_id":123,"consented":true,"spec":{"intent":"semantic","exact":{"title":null,"author":null,"publisher":null},"filters":{},"semantic":"퇴근길에 읽을 짧은 소설","anchor_book":null,"exclude":[]},"message":"유머 있으면 좋겠어","recent_turns":[],"exclude_book_ids":[],"exclude_isbns":[],"purchased_isbns":["9788900000035"],"library_isbns":[],"image_ref":null}'
 ```
 
 ```json
@@ -78,7 +78,7 @@ curl -X POST https://ai.internal.bookjeok.com/recommendations/chat \
     "spec": {
       "intent": "semantic",
       "exact": { "title": null, "author": null, "publisher": null },
-      "filters": { "in_stock_only": true },
+      "filters": {},
       "semantic": "퇴근길에 읽을 짧고 유머 있는 소설",
       "anchor_book": null,
       "exclude": []
@@ -87,6 +87,7 @@ curl -X POST https://ai.internal.bookjeok.com/recommendations/chat \
     "cards": [
       {
         "book_id": 1088,
+        "isbn": "9788900000011",
         "rank": 1,
         "match_score": 87,
         "title": "…",
@@ -113,7 +114,7 @@ curl -X POST https://ai.internal.bookjeok.com/recommendations/chat \
 ```bash
 curl -X POST https://ai.internal.bookjeok.com/recommendations/chat \
   -H "Authorization: Bearer $SERVICE_TOKEN" -H "Content-Type: application/json" \
-  -d '{"user_id":123,"consented":true,"spec":{"intent":"semantic","exact":{"title":null,"author":null,"publisher":null},"filters":{},"semantic":null,"anchor_book":null,"exclude":[]},"recent_turns":[],"exclude_book_ids":[],"image_ref":"<https://s3>.…/up_20260903_abc?X-Amz-Signature=…"}'
+  -d '{"user_id":123,"consented":true,"spec":{"intent":"semantic","exact":{"title":null,"author":null,"publisher":null},"filters":{},"semantic":null,"anchor_book":null,"exclude":[]},"recent_turns":[],"exclude_book_ids":[],"exclude_isbns":[],"purchased_isbns":["9788900000035"],"library_isbns":[],"image_ref":"<https://s3>.…/up_20260903_abc?X-Amz-Signature=…"}'
 ```
 
 응답. 한 권으로 특정한 경우:
@@ -135,6 +136,7 @@ curl -X POST https://ai.internal.bookjeok.com/recommendations/chat \
     "cards": [
       {
         "book_id": 4021,
+        "isbn": "9788900000042",
         "rank": 1,
         "match_score": 79,
         "title": "…",
