@@ -11,6 +11,10 @@ updated: 2026-10-16
 | 날짜 | 파트 | 결정 | 영향 파트 | 상세 |
 |---|---|---|---|---|
 | 10-16 | AI | AI DB에 책 분류 표와 프로필의 관심사·추천 목록 칸을 더하고, 적용은 클라우드가 한다(AI #395) | AI, CLD | [ERD 3.2·3.12](../ai/9-data-erd/spec.md) |
+| 10-14 | AI | ⑦ 확인 버튼은 FE가 BE 장바구니 API로 직접 담는다(FE, BE 확인 대기, AI #396) | AI, BE, FE | [모델 API 명세 ⑦](../ai/1-model-api/spec.md) |
+| 10-14 | AI | ⑦ `context_cards`는 가장 최근에 카드가 보인 묶음을 보낸다(AI #396) | AI, BE, FE | [모델 API 명세 ⑦](../ai/1-model-api/spec.md) |
+| 10-14 | AI | ⑦ `recent_turns`의 200자 초과 줄은 400 대신 뒤쪽 200자만 쓴다(구현 예정, AI #396) | AI, BE, FE | [모델 API 명세 ⑦](../ai/1-model-api/spec.md) |
+| 10-14 | AI | ⑦ 되묻기·비교의 버튼은 만들지 않고 되물음의 `resolved_reference`는 `null`(AI #396) | AI, BE, FE | [모델 API 명세 ⑦](../ai/1-model-api/spec.md) |
 | 10-12 | AI | ⑤는 추천을 부탁하기만 한 내용도 취향으로 뽑고, 문장은 200자 이하(AI #341) | AI | [모델 API 명세 ⑤](../ai/1-model-api/spec.md) |
 | 10-12 | AI | ⑦ 골라 담기는 직전 카드 안에서만 고르고, 이미 담긴 책은 담지 않고 알려 준다(AI #344) | AI, BE, FE | [모델 API 명세 ⑦](../ai/1-model-api/spec.md) |
 | 09-30 | AI | ③⑤ `consented`는 온보딩의 개인화 추천 동의와 같은 값 | AI, BE, FE | [모델 API 명세 ③](../ai/1-model-api/spec.md) |
