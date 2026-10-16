@@ -571,7 +571,7 @@ GET /recommendations/feed?user_id=123&surface=recommend_more&sort=match
 | items[].cover_url | string? | 표지 이미지 URL. 없는 도서는 null |
 | items[].match_score | int | 취향 매칭 점수 0–100 ². 정렬과 필터에 쓴다. cold_start가 true면 0 |
 | next_cursor | string? | 다음 페이지 커서. 마지막이면 null |
-| cold_start | bool | true면 취향 정보가 없어 개인화를 끄고, 판매 수 있는 도서를 색인 순서로 먼저·나머지는 신간순으로 이어 붙여 채움(최대 500권) |
+| cold_start | bool | true면 취향 정보가 없어 개인화를 끄고, 판매 수 있는 도서를 색인 순서로 먼저·나머지는 신간순으로 이어 붙여 채움(최대 500권) ³ |
 
 - **피드 항목에는 추천 이유 문구가 없다.** 순서와 `match_score`만 낸다. 이유는 대화형 추천 카드에서만 나온다(③의 `reason_short`·`reason_long`). 피드가 LLM을 호출하지 않는다는 원칙을 지키기 위해서다.
 - 커서 제외 규칙의 ’조회, 구매 이력’은 `v_user_purchases`, `v_user_library`를 말한다. 이미 산 책과 담은 책, 별점 1–2점을 준 책은 목록에서 빼되, 커서 발급 이후에 생긴 것은 제외 대상에서 뺀다(카드를 보고 돌아와 스크롤해도 목록이 밀리지 않게).
@@ -593,6 +593,8 @@ GET /recommendations/feed?user_id=123&surface=recommend_more&sort=match
 ¹ 취향 유사도를 빼고 규칙 기반 점수만으로 정렬한다. 남은 비중을 1로 재분배하지 않아 match_score는 최대 40점이다. 벡터 인덱스 이상과 모델 교체 구간에만 나온다. `centroid`가 없으면 이 값이 아니라 `cold_start: true`이고, 복제 지연·행 부재도 해당하지 않는다
 
 ² 그 책을 뽑은 관심사와의 취향 유사도(60%)와, 그 관심사가 목록에서 받은 자리의 몫(25%)을 합친다. 인기(15%)는 아직 더하지 않아 최고 85점이다. 홈과 더 보기가 같은 점수를 읽는다(AI #448)
+
+³ 기능 플래그(`interest_feed`)를 켜면, 취향 벡터가 없어도 저장된 추천 목록이 있는 사용자(어린이 분야만 고른 사용자 등)는 그 목록으로 답하고 false다(AI #473)
 
 </details>
 
