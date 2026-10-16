@@ -4,12 +4,13 @@ type: decision-log
 group: dec-000
 owner: 김세훈
 status: 작성중
-updated: 2026-10-14
+updated: 2026-10-16
 ---
 **요약** 프로젝트의 모든 기술 결정을 한 줄씩 모은 입구. 상세는 링크를 따라간다.
 
 | 날짜 | 파트 | 결정 | 영향 파트 | 상세 |
 |---|---|---|---|---|
+| 10-16 | AI | AI DB에 책 분류 표와 프로필의 관심사·추천 목록 칸을 더하고, 적용은 클라우드가 한다(AI #395) | AI, CLD | [ERD 3.2·3.12](../ai/9-data-erd/spec.md) |
 | 10-14 | AI | ⑦ 확인 버튼은 FE가 BE 장바구니 API로 직접 담는다(FE, BE 확인 대기, AI #396) | AI, BE, FE | [모델 API 명세 ⑦](../ai/1-model-api/spec.md) |
 | 10-14 | AI | ⑦ `context_cards`는 가장 최근에 카드가 보인 묶음을 보낸다(AI #396) | AI, BE, FE | [모델 API 명세 ⑦](../ai/1-model-api/spec.md) |
 | 10-14 | AI | ⑦ `recent_turns`의 200자 초과 줄은 400 대신 뒤쪽 200자만 쓴다(구현 예정, AI #396) | AI, BE, FE | [모델 API 명세 ⑦](../ai/1-model-api/spec.md) |
