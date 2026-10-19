@@ -41,7 +41,7 @@ limit_exempt: 원본 8개 엔드포인트의 필드표·에러표·규칙 문장
 
 ² 사용자 메시지를 읽어 추천 조건을 갱신하고 카드를 최대 3장 준다. 카드마다 한 줄 이유와 상세 페이지용 긴 이유를 한 번의 LLM 호출로 함께 만든다. (V2) 사진을 보내면 같은 요청에서 표지를 인식한다. 쇼핑 칸(`idempotency_key` 등)을 함께 보내면 AI 서버가 추천과 쇼핑을 가른다 ⁴
 
-³ 구매·도서관·리뷰는 아래 복제 테이블에서 직접 읽는다. 호출할 때마다 전체를 다시 계산한다
+³ 구매·도서관·리뷰는 요청의 `history`로 받고, 보내지 않으면 아래 복제 테이블에서 직접 읽는다(AI #327). 호출할 때마다 전체를 다시 계산한다
 
 ⁴ **BE는 ⑦을 직접 부르지 않는다.** 추천인지 쇼핑인지는 AI 서버가 가른다(AI #413). BE는 ③ 하나만 부르고, 쇼핑에 필요한 칸을 ③ 요청에 실어 보낸다. 응답의 `route`로 어느 쪽 응답인지 안다. `/agent/act`는 같은 처리를 직접 부르는 입구로 그대로 남는다
 
@@ -783,9 +783,9 @@ GET /recommendations/feed?user_id=123&surface=recommend_more&sort=match
 
 온보딩 응답과 취향 기억으로 취향 프로필(취향 벡터와 태그 가중치)을 만들어 저장한다. 개인화를 쓰는 모든 API가 이 프로필을 참조한다.
 
-**구매, 나의 도서관, 리뷰는 요청으로 받지 않는다.** 서버가 `user_id`로 복제 테이블 `v_user_purchases`, `v_user_library`, `v_user_reviews`를 읽어 계산에 넣는다. 호출자가 이력을 모아 보낼 필요가 없다. 복제 직전에 생긴 이력은 이번 계산에서 빠질 수 있으나 결과에서 누락되지는 않는다 — 아래 `computed_at` 설명 참고.
+**구매, 나의 도서관, 리뷰는 요청의 `history`로 받는다(AI #327).** 부를 때마다 그때까지의 이력 전체를 싣는다. `history`가 없거나 null이면 아직 보내지 않는 것으로 보고, 서버가 `user_id`로 복제 테이블 `v_user_purchases`, `v_user_library`, `v_user_reviews`를 읽어 계산에 넣는다. 복제 직전에 생긴 이력은 이번 계산에서 빠질 수 있으나 결과에서 누락되지는 않는다 — 아래 `computed_at` 설명 참고.
 
-호출 시점은 **온보딩 완료 직후**와 **취향 기억이 바뀔 때** 둘뿐이다. BE는 **개인화 추천에 동의한 사용자만** 부른다. 프로필이 없는 사용자는 구매·리뷰 이력이 있어도 ③④가 개인화하지 않는다(AI #266). 구매나 리뷰가 늘었다고 다시 부르지 않아도 된다 — 프로필이 반영한 이력 이후에 생긴 이력은 ③, ④가 채점할 때 그 자리에서 읽어 더한다(아래 처리 참고).
+호출 시점은 **온보딩 완료 직후**와 **취향 기억이 바뀔 때** 둘뿐이다. BE는 **개인화 추천에 동의한 사용자만** 부른다. 프로필이 없는 사용자는 구매·리뷰 이력이 있어도 ③④가 개인화하지 않는다(AI #266). `history`를 보내지 않는 동안은 구매나 리뷰가 늘었다고 다시 부르지 않아도 된다 — 프로필이 반영한 이력 이후에 생긴 이력은 ③, ④가 채점할 때 그 자리에서 읽어 더한다(아래 처리 참고). `history`를 보내면 이력이 생기거나 빠지거나 바뀐 사용자를 모아 다시 부른다(AI #307).
 
 호출할 때마다 전체를 다시 계산한다. 취향 기억을 지웠을 때 그 몫만 분리해 뺄 수 없기 때문이다.
 
@@ -804,7 +804,8 @@ GET /recommendations/feed?user_id=123&surface=recommend_more&sort=match
     "criteria": ["베스트셀러"],
     "categories": ["에세이", "한국소설"],
     "tags": ["힐링", "성장"],
-    "liked_book_ids": [1088, 3310]
+    "liked_book_ids": [1088, 3310],
+    "liked_isbns": ["9788900000011"]
   },
   "memories": [
     {
@@ -827,7 +828,14 @@ GET /recommendations/feed?user_id=123&surface=recommend_more&sort=match
       "vector": [0.01, -0.04, "…"],
       "dim": 384
     }
-  ]
+  ],
+  "history": {
+    "purchased_isbns": ["9788900000011", "9788900000035"],
+    "library_isbns": ["9788900000042"],
+    "reviews": [
+      { "isbn": "9788900000011", "rating": 4.5, "content": "잔잔한데 마지막에 울컥했어요" }
+    ]
+  }
 }
 ```
 
@@ -841,6 +849,7 @@ GET /recommendations/feed?user_id=123&surface=recommend_more&sort=match
 | onboarding.categories | string[] | N | 관심 대분류(앱 화면 값). 최대 3개. ①④ 필터의 category와 같은 값이다. 카탈로그 분류와는 대응표로 잇고, 대응표에 없는 값은 건너뛴다 |
 | onboarding.tags | string[] | N | 세부 태그. 최대 9개 |
 | onboarding.liked_book_ids | int[] | N | 마음에 드는 책 ID. 0권 가능, 상한 없음. 서버는 앞 50권만 씀 |
+| onboarding.liked_isbns | string[] | N | 마음에 드는 책의 ISBN-13 ⁶ |
 | memories | object[] | N | 저장된 취향 기억 전체. 사용자가 지운 것은 빼고 보낸다 ³ |
 | memories[].type | enum | Y | ⑤가 준 값(mood, topic, author, condition) |
 | memories[].value | string | Y | ⑤가 준 값 |
@@ -850,6 +859,13 @@ GET /recommendations/feed?user_id=123&surface=recommend_more&sort=match
 | memories[].created_at | string | Y | 취향 기억 표의 created_at 그대로 ⁵ |
 | memories[].vector | float[] | Y | ⑤가 준 핵심어의 벡터. 길이는 dim과 같다 |
 | memories[].dim | int | Y | 벡터 길이 |
+| history | object? | N | 구매, 나의 도서관, 리뷰 이력 전체 ⁷ |
+| history.purchased_isbns | string[] | N | 산 책의 ISBN-13. 결제가 끝났고 취소되지 않은 것만 |
+| history.library_isbns | string[] | N | 나의 도서관에 담은 책의 ISBN-13 |
+| history.reviews | object[] | N | 지워지지 않은 리뷰 |
+| history.reviews[].isbn | string | Y | 리뷰를 단 책의 ISBN-13 |
+| history.reviews[].rating | number | Y | 별점. 0 이상 5 이하 |
+| history.reviews[].content | string? | N | 리뷰 본문. 받기만 하고 계산에 쓰지 않는다 |
 
 ¹ 같은 키, 같은 본문이면 다시 계산하지 않고 저장 결과를 200으로 반환. 응답이 유실돼 재시도해도 프로필이 두 번 바뀌지 않게
 
@@ -860,6 +876,10 @@ GET /recommendations/feed?user_id=123&surface=recommend_more&sort=match
 ⁴ 서버가 모르는 이름이면 그 이름만 건너뛰고 400이 아니다
 
 ⁵ 날짜·시각(한국 시간). 예: `2026-09-04T00:12:30.123456`. 소수점 아래는 없어도 된다. 같은 관심사를 좋아한다고도 싫다고도 했을 때 어느 쪽이 나중인지 가리는 데 쓴다. 같은 밤에 저장된 줄끼리도 가려야 해서 마이크로초까지 보낸다
+
+⁶ 책 번호를 ISBN으로 옮기는 중이라 `liked_book_ids`와 둘 다 받는다(AI #315). 둘 다 오면 ISBN으로 온 책을 앞에 두고 합쳐서 앞 50권을 쓴다. 다 옮기면 `liked_book_ids`를 뺀다. ISBN은 13자리 숫자 문자열이고 형식이 틀리면 400이다. 책 표에 없는 ISBN은 건너뛴다
+
+⁷ **칸이 없거나 null인 것과 빈 객체 {}는 뜻이 다르다.** 없거나 null이면 아직 보내지 않는 것으로 보고 복제 테이블의 이력을 읽는다. {}나 빈 목록은 이력이 없다는 뜻이라 복제 테이블을 읽지 않는다. 그래서 이력을 채우기 전에 {}부터 보내면 이력이 빠진 프로필이 된다. 안의 목록이 null이면 빈 목록으로 본다. 가중치는 아래 이력 가중치 표와 같다. ISBN 형식과 책 표에 없는 ISBN은 ⁶과 같다
 
 - memories[].dim이 서버가 쓰는 벡터 인덱스 차원과 다르면 400 invalid_request로 거절한다.
 - memories[]의 strength가 범위 밖이거나 0, applies_to가 4개 이상, keyword가 비었거나 100자를 넘음, created_at이 날짜·시각 모양이 아니면 400 invalid_request로 거절한다.
@@ -885,14 +905,15 @@ GET /recommendations/feed?user_id=123&surface=recommend_more&sort=match
 **처리(참고)**
 
 ```python
-이력 = v_user_purchases ∪ v_user_library ∪ v_user_reviews  (복제 테이블, user_id로 조회)
+이력 = 요청의 history  (없거나 null이면 v_user_purchases ∪ v_user_library ∪ v_user_reviews를 user_id로 조회)
 
 centroid = 가중평균( liked 책 문서벡터
                    ∪ 카테고리, 태그 사전임베딩 벡터 ∪ memories[].vector
                    ∪ 이력 책들의 문서벡터(구매 3, 리뷰 4~5점 2, 담기 1) )
 태그 가중치 = 온보딩 태그 + 기억 type 집계(V1 미구현) + 이력 책들의 카테고리 점수
 → {centroid, tag_weights, cold_start, computed_at} 을 취향 프로필 테이블에 upsert
-   (computed_at = 위에서 실제로 읽은 이력 행들의 시각 중 최댓값. 계산 시각이 아니다)
+   (computed_at = 위에서 실제로 읽은 이력 행들의 시각 중 최댓값. 계산 시각이 아니다.
+    history로 받았으면 그때까지의 이력 전체가 실려 오므로 요청을 받은 시각)
 ```
 
 | 취향 조각 | 벡터 출처 | 언제 |
@@ -1547,11 +1568,13 @@ flowchart TB
 | 대화 세션 종료 후 야간 배치 (V2) | /preferences/extractions |
 | 온보딩 완료, 취향 기억 변경(개인화 추천에 동의한 사용자만) | /preferences/profile |
 | 밤 배치 맨 끝, ⑥을 다 부른 뒤 (V2) | /recommendations/feed/refresh |
-| 구매, 담기, 리뷰 발생 | 호출 없음. 복제로 넘어오고, AI가 채점할 때 복제 테이블에서 읽는다. 반영까지 최대 5분 |
+| 구매, 담기, 리뷰 발생 | 호출 없음. 복제로 넘어오고, AI가 채점할 때 복제 테이블에서 읽는다. 반영까지 최대 5분 ¹⁰ |
 | 판매, 평점 집계 갱신 | 호출 없음. BE가 원본을 갱신하고 복제가 도착하면 다음 요청부터 반영. 허용 지연 24시간 |
 | 챗봇에서 사용자가 쇼핑 요청을 함 (V2) | /recommendations/chat, 쇼핑 칸 포함. AI 서버가 ⑦로 넘기고 응답의 `route`가 `shop` ⁹ |
 
 ⁹ BE는 `/agent/act`를 직접 부르지 않는다(③ 입력 ⁸).
+
+¹⁰ ⑥에 `history`를 보내면 이력이 생기거나 빠지거나 바뀐 사용자를 모아 /preferences/profile을 다시 부른다(AI #307).
 
 판매량 순위 목록은 개인화가 없어 이 API의 범위가 아니다. 도서 상세의 추천 이유는 추천을 거친 조회에만 존재한다 — 챗봇 카드로 들어온 경우에만 긴 이유가 있고, 검색이나 카테고리로 바로 들어온 상세 페이지에는 이유 영역이 없다.
 
@@ -1577,7 +1600,7 @@ flowchart TB
 - **식별자**: book_id, user_id는 커머스의 정수 ID
 - **추천 이유의 보관**: 한 줄 이유와 긴 이유는 ③ 응답에서 한 번에 나오고 AI 서버는 저장하지 않는다. 상세 페이지에 쓸 긴 이유는 BE가 카드와 함께 보관한다. 이유 재생성 엔드포인트는 없다
 - **복제 방향**: DB 복제는 BE MySQL → AI PostgreSQL 한 방향이며 역방향 복제는 없다. AI가 만든 값이 BE에 저장되는 경로는 응답 본문뿐이고(⑦ `actions` 포함), 복제가 아니라 BE가 검증한 뒤 자기 테이블에 쓰는 것이다
-- **커머스 데이터의 주인**: 도서 카탈로그, 구매, 나의 도서관, 리뷰, 인기 집계의 원본 주인은 BE다. AI는 복제받은 사본을 조회만 하고 원본에는 쓰지 않으며, AI 서버에는 BE MySQL로 가는 연결이 없다. 요청 본문으로도 받지 않는다
+- **커머스 데이터의 주인**: 도서 카탈로그, 구매, 나의 도서관, 리뷰, 인기 집계의 원본 주인은 BE다. AI는 복제받은 사본을 조회만 하고 원본에는 쓰지 않으며, AI 서버에는 BE MySQL로 가는 연결이 없다. 가진 책(③④)과 이력(⑥)은 요청으로도 받는다(AI #307)
 - **복제 계약면**: 복제 대상 여섯 테이블과 그 컬럼 집합. 컬럼명·타입·의미 변경과 삭제는 복제를 끊으므로 BE가 사전에 알린다. 대상 목록과 테이블별 허용 지연은 ERD §2에 있다
 - **복제 지연·행 부재·장애**: 지연과 행 부재는 오류가 아니다. 지연이면 낡은 값 그대로 200, 행이 없으면 그 항을 0점으로 두고 200이며 X-Degraded는 붙지 않는다. AI Postgres 장애는 전면 500이고, BE MySQL 장애는 500이 아니라 복제만 멈춘다
 - **카탈로그 조인**: 목록 응답의 book_id는 모두 도서 카탈로그에 있는 것이다. 카탈로그에서 사라진 도서는 조인에서 빠지므로 한 페이지가 size보다 짧을 수 있다. **짧은 페이지는 목록의 끝이 아니며** 끝은 next_cursor: null로만 판정한다
