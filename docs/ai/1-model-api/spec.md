@@ -97,8 +97,7 @@ limit_exempt: 원본 8개 엔드포인트의 필드표·에러표·규칙 문장
     "price_min": 10000,
     "price_max": 20000,
     "pub_year_from": 2020,
-    "pub_year_to": 2026,
-    "in_stock_only": true
+    "pub_year_to": 2026
   },
   "sort": "relevance",
   "cursor": null,
@@ -109,14 +108,17 @@ limit_exempt: 원본 8개 엔드포인트의 필드표·에러표·규칙 문장
 | 필드 | 타입 | 필수 | 설명 |
 |---|---|---|---|
 | query | string | Y | 검색어. 1–200자 |
-| filters | object | N | 조회 조건. 이 값만 적용하고 검색어에서 조건을 추출하지 않는다 |
-| filters.category | string | N | 온보딩 관심 분류(소설, 에세이 등 13개). 대응표의 핵심 카탈로그 분류들로 거른다. 그 밖의 값은 400 |
+| filters | object | N | 조회 조건. 이 값만 적용하고 검색어에서 조건을 추출하지 않는다 ¹ |
+| filters.category | string | N | 온보딩 관심 분류(소설, 에세이 등 14개). 대응표의 핵심 카탈로그 분류들로 거르고, 그 밖의 값은 400 ² |
 | filters.price_min, .price_max | int | N | 판매가 구간(원) |
 | filters.pub_year_from, .pub_year_to | int | N | 출간연도 구간 |
-| filters.in_stock_only | bool | N | 품절 도서 제외 |
 | sort | enum | N | relevance(기본, 관련도), newest, price_asc, price_desc, popular(판매 수 기준, BE #68 합의) |
 | cursor | string? | N | 페이지 커서. 직전 응답의 next_cursor를 그대로 싣는다. 첫 턴은 생략. 30분 지나면 만료 |
 | size | int | N | 한 페이지 개수. 기본 15, 최대 50 |
+
+¹ 재고 조건(in_stock_only)은 없앴다(AI #335). 실려 와도 400이 아니라 무시한다
+
+² 어린이는 여러 분류에 흩어져 있어 분류로 가를 수 없다. 400이 아니라 거르지 않은 결과를 준다(AI #228)
 
 **출력** `200`
 
@@ -127,6 +129,7 @@ limit_exempt: 원본 8개 엔드포인트의 필드표·에러표·규칙 문장
     "results": [
       {
         "book_id": 2077,
+        "isbn": "9788900000073",
         "title": "여행의 이유",
         "author": "김영하",
         "publisher": "문학동네",
@@ -160,6 +163,7 @@ limit_exempt: 원본 8개 엔드포인트의 필드표·에러표·규칙 문장
 |---|---|---|
 | results | object[] | 검색 결과. 없으면 []. 키워드 200권+벡터 50권 후보 안에서만 나와 최대 약 250권 |
 | results[].book_id | int | 도서 ID |
+| results[].isbn | string? | ISBN-13. 책 표에 ISBN이 없는 도서는 null ¹ |
 | results[].title | string | 제목 |
 | results[].author, .publisher | string? | 저자, 출판사. 카탈로그에 값이 없는 도서는 null |
 | results[].price | int? | 판매가(원). 할인 적용 후. 상품이 없는 도서는 null |
@@ -168,6 +172,8 @@ limit_exempt: 원본 8개 엔드포인트의 필드표·에러표·규칙 문장
 | next_cursor | string? | 다음 페이지 커서. 마지막이면 null. 다음 요청의 cursor에 그대로 싣는다 |
 | fallback | object? | 결과가 0건일 때만 값이 있고 그 외 null |
 | fallback.message | string | 호출자에게 전달할 안내 문구 |
+
+¹ 책 번호를 ISBN으로 옮기는 중이라 book_id와 함께 싣는다(AI #313). 다 옮기면 book_id를 뺀다
 
 **에러**
 
