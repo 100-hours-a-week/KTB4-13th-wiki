@@ -24,6 +24,7 @@ updated: 2026-10-20
 | 10-12 | AI | ⑤는 추천을 부탁하기만 한 내용도 취향으로 뽑고, 문장은 200자 이하(AI #341) | AI | [모델 API 명세 ⑤](../ai/1-model-api/spec.md) |
 | 10-12 | AI | ⑦ 골라 담기는 직전 카드 안에서만 고르고, 이미 담긴 책은 담지 않고 알려 준다(AI #344) | AI, BE, FE | [모델 API 명세 ⑦](../ai/1-model-api/spec.md) |
 | 10-11 | AI | ①④ 응답에 `isbn`을 싣고 ④는 가진 책의 ISBN을 받는다. ① 재고 조건(`in_stock_only`)은 없앤다(AI #307) | AI, BE | [모델 API 명세 ①④](../ai/1-model-api/spec.md) |
+| 10-11 | AI | ⑥은 이력을 `history`로 받고 고칠 때는 `PUT`으로 부른다. 멱등 키는 확인하지 않는다(AI #307, #303) | AI, BE | [모델 API 명세 ⑥](../ai/1-model-api/spec.md) |
 | 09-30 | AI | ③⑤ `consented`는 온보딩의 개인화 추천 동의와 같은 값 | AI, BE, FE | [모델 API 명세 ③](../ai/1-model-api/spec.md) |
 | 09-30 | AI | 저장된 취향 벡터가 없으면 이력이 있어도 ③④가 개인화하지 않음(AI #246 되돌림, AI #266) | AI, BE | [모델 API 명세 ⑥](../ai/1-model-api/spec.md) |
 | 09-28 | AI | ③ 챗봇 스트리밍(SSE)은 V2. V1은 JSON envelope 한 번으로 응답(AI #236) | AI, BE, FE | [모델 API 명세 ③](../ai/1-model-api/spec.md) |

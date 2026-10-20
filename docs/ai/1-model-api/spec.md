@@ -41,7 +41,7 @@ limit_exempt: 원본 8개 엔드포인트의 필드표·에러표·규칙 문장
 
 ² 사용자 메시지를 읽어 추천 조건을 갱신하고 카드를 최대 3장 준다. 카드마다 한 줄 이유와 상세 페이지용 긴 이유를 한 번의 LLM 호출로 함께 만든다. (V2) 사진을 보내면 같은 요청에서 표지를 인식한다. 쇼핑 칸(`idempotency_key` 등)을 함께 보내면 AI 서버가 추천과 쇼핑을 가른다 ⁴
 
-³ 구매·도서관·리뷰는 아래 복제 테이블에서 직접 읽는다. 호출할 때마다 전체를 다시 계산한다
+³ 만들 때는 POST, 고칠 때는 PUT으로 부른다(AI #303). 구매·도서관·리뷰는 요청의 `history`로 받고, 보내지 않으면 아래 복제 테이블에서 직접 읽는다(AI #327). 호출할 때마다 전체를 다시 계산한다
 
 ⁴ **BE는 ⑦을 직접 부르지 않는다.** 추천인지 쇼핑인지는 AI 서버가 가른다(AI #413). BE는 ③ 하나만 부르고, 쇼핑에 필요한 칸을 ③ 요청에 실어 보낸다. 응답의 `route`로 어느 쪽 응답인지 안다. `/agent/act`는 같은 처리를 직접 부르는 입구로 그대로 남는다
 
@@ -783,9 +783,9 @@ GET /recommendations/feed?user_id=123&surface=recommend_more&sort=match
 
 온보딩 응답과 취향 기억으로 취향 프로필(취향 벡터와 태그 가중치)을 만들어 저장한다. 개인화를 쓰는 모든 API가 이 프로필을 참조한다.
 
-**구매, 나의 도서관, 리뷰는 요청으로 받지 않는다.** 서버가 `user_id`로 복제 테이블 `v_user_purchases`, `v_user_library`, `v_user_reviews`를 읽어 계산에 넣는다. 호출자가 이력을 모아 보낼 필요가 없다. 복제 직전에 생긴 이력은 이번 계산에서 빠질 수 있으나 결과에서 누락되지는 않는다 — 아래 `computed_at` 설명 참고.
+**구매, 나의 도서관, 리뷰는 요청의 `history`로 받는다(AI #327).** 부를 때마다 그때까지의 이력 전체를 싣는다. `history`가 없거나 null이면 아직 보내지 않는 것으로 보고, 서버가 `user_id`로 복제 테이블 `v_user_purchases`, `v_user_library`, `v_user_reviews`를 읽어 계산에 넣는다. 복제 직전에 생긴 이력은 이번 계산에서 빠질 수 있으나 결과에서 누락되지는 않는다 — 아래 `computed_at` 설명 참고.
 
-호출 시점은 **온보딩 완료 직후**와 **취향 기억이 바뀔 때** 둘뿐이다. BE는 **개인화 추천에 동의한 사용자만** 부른다. 프로필이 없는 사용자는 구매·리뷰 이력이 있어도 ③④가 개인화하지 않는다(AI #266). 구매나 리뷰가 늘었다고 다시 부르지 않아도 된다 — 프로필이 반영한 이력 이후에 생긴 이력은 ③, ④가 채점할 때 그 자리에서 읽어 더한다(아래 처리 참고).
+호출 시점은 **온보딩 완료 직후**와 **취향 기억이 바뀔 때**다. 만들 때는 `POST`, 고칠 때는 `PUT`으로 부른다. 처리와 요청·응답 모양은 같아서 어느 쪽이든 프로필이 없으면 만들고 있으면 바꾼다(AI #303). BE는 **개인화 추천에 동의한 사용자만** 부른다. 프로필이 없는 사용자는 구매·리뷰 이력이 있어도 ③④가 개인화하지 않는다(AI #266). `history`를 보내지 않는 동안은 구매나 리뷰가 늘었다고 다시 부르지 않아도 된다 — 프로필이 반영한 이력 이후에 생긴 이력은 ③, ④가 채점할 때 그 자리에서 읽어 더한다(아래 처리 참고). `history`를 보내면 이력이 생기거나 빠지거나 바뀐 사용자도 모아 `PUT`으로 다시 부른다(AI #307).
 
 호출할 때마다 전체를 다시 계산한다. 취향 기억을 지웠을 때 그 몫만 분리해 뺄 수 없기 때문이다.
 
@@ -804,7 +804,8 @@ GET /recommendations/feed?user_id=123&surface=recommend_more&sort=match
     "criteria": ["베스트셀러"],
     "categories": ["에세이", "한국소설"],
     "tags": ["힐링", "성장"],
-    "liked_book_ids": [1088, 3310]
+    "liked_book_ids": [1088, 3310],
+    "liked_isbns": ["9788900000011"]
   },
   "memories": [
     {
@@ -827,7 +828,14 @@ GET /recommendations/feed?user_id=123&surface=recommend_more&sort=match
       "vector": [0.01, -0.04, "…"],
       "dim": 384
     }
-  ]
+  ],
+  "history": {
+    "purchased_isbns": ["9788900000011", "9788900000035"],
+    "library_isbns": ["9788900000042"],
+    "reviews": [
+      { "isbn": "9788900000011", "rating": 4.5, "content": "잔잔한데 마지막에 울컥했어요" }
+    ]
+  }
 }
 ```
 
@@ -841,6 +849,7 @@ GET /recommendations/feed?user_id=123&surface=recommend_more&sort=match
 | onboarding.categories | string[] | N | 관심 대분류(앱 화면 값). 최대 3개. ①④ 필터의 category와 같은 값이다. 카탈로그 분류와는 대응표로 잇고, 대응표에 없는 값은 건너뛴다 |
 | onboarding.tags | string[] | N | 세부 태그. 최대 9개 |
 | onboarding.liked_book_ids | int[] | N | 마음에 드는 책 ID. 0권 가능, 상한 없음. 서버는 앞 50권만 씀 |
+| onboarding.liked_isbns | string[] | N | 마음에 드는 책의 ISBN-13 ⁶ |
 | memories | object[] | N | 저장된 취향 기억 전체. 사용자가 지운 것은 빼고 보낸다 ³ |
 | memories[].type | enum | Y | ⑤가 준 값(mood, topic, author, condition) |
 | memories[].value | string | Y | ⑤가 준 값 |
@@ -850,8 +859,15 @@ GET /recommendations/feed?user_id=123&surface=recommend_more&sort=match
 | memories[].created_at | string | Y | 취향 기억 표의 created_at 그대로 ⁵ |
 | memories[].vector | float[] | Y | ⑤가 준 핵심어의 벡터. 길이는 dim과 같다 |
 | memories[].dim | int | Y | 벡터 길이 |
+| history | object? | N | 구매, 나의 도서관, 리뷰 이력 전체 ⁷ |
+| history.purchased_isbns | string[] | N | 산 책의 ISBN-13. 결제가 끝났고 취소되지 않은 것만 |
+| history.library_isbns | string[] | N | 나의 도서관에 담은 책의 ISBN-13 |
+| history.reviews | object[] | N | 지워지지 않은 리뷰 |
+| history.reviews[].isbn | string | Y | 리뷰를 단 책의 ISBN-13 |
+| history.reviews[].rating | number | Y | 별점. 0 이상 5 이하 |
+| history.reviews[].content | string? | N | 리뷰 본문. 받기만 하고 계산에 쓰지 않는다 |
 
-¹ 같은 키, 같은 본문이면 다시 계산하지 않고 저장 결과를 200으로 반환. 응답이 유실돼 재시도해도 프로필이 두 번 바뀌지 않게
+¹ 받기만 하고 확인하지 않는다(AI #303). 같은 키로 다시 와도 다시 계산하고 409를 내지 않는다. 입력이 같으면 결과가 같고 profile_version도 그대로라, 응답이 유실돼 재시도해도 프로필이 두 번 바뀌지 않는다. 빈 문자열은 400이다
 
 ² 매번 처음부터 다시 만들기 때문에 기억만 바뀌어도 온보딩 응답을 다시 보냄. 건너뛴 사용자는 {}
 
@@ -861,9 +877,12 @@ GET /recommendations/feed?user_id=123&surface=recommend_more&sort=match
 
 ⁵ 날짜·시각(한국 시간). 예: `2026-09-04T00:12:30.123456`. 소수점 아래는 없어도 된다. 같은 관심사를 좋아한다고도 싫다고도 했을 때 어느 쪽이 나중인지 가리는 데 쓴다. 같은 밤에 저장된 줄끼리도 가려야 해서 마이크로초까지 보낸다
 
+⁶ 책 번호를 ISBN으로 옮기는 중이라 `liked_book_ids`와 둘 다 받는다(AI #315). 둘 다 오면 ISBN으로 온 책을 앞에 두고 합쳐서 앞 50권을 쓴다. 다 옮기면 `liked_book_ids`를 뺀다. ISBN은 13자리 숫자 문자열이고 형식이 틀리면 400이다. 책 표에 없는 ISBN은 건너뛴다
+
+⁷ **칸이 없거나 null인 것과 빈 객체 {}는 뜻이 다르다.** 없거나 null이면 아직 보내지 않는 것으로 보고 복제 테이블의 이력을 읽는다. {}나 빈 목록은 이력이 없다는 뜻이라 복제 테이블을 읽지 않는다. 그래서 이력을 채우기 전에 {}부터 보내면 이력이 빠진 프로필이 된다. 안의 목록이 null이면 빈 목록으로 본다. 가중치는 아래 이력 가중치 표와 같다. ISBN 형식과 책 표에 없는 ISBN은 ⁶과 같다
+
 - memories[].dim이 서버가 쓰는 벡터 인덱스 차원과 다르면 400 invalid_request로 거절한다.
 - memories[]의 strength가 범위 밖이거나 0, applies_to가 4개 이상, keyword가 비었거나 100자를 넘음, created_at이 날짜·시각 모양이 아니면 400 invalid_request로 거절한다.
-- 이력은 요청 필드가 아니라 복제 테이블에서 읽으므로, 같은 `idempotency_key`에 같은 본문이어도 그 사이 구매가 생겼거나 복제가 도착하면 결과가 달라질 수 있다. 멱등 규약은 **재계산을 건너뛰고 저장된 결과를 그대로 돌려주는 것**이라 이 경우에도 응답은 일관된다.
 
 **출력** `200`
 
@@ -885,14 +904,15 @@ GET /recommendations/feed?user_id=123&surface=recommend_more&sort=match
 **처리(참고)**
 
 ```python
-이력 = v_user_purchases ∪ v_user_library ∪ v_user_reviews  (복제 테이블, user_id로 조회)
+이력 = 요청의 history  (없거나 null이면 v_user_purchases ∪ v_user_library ∪ v_user_reviews를 user_id로 조회)
 
 centroid = 가중평균( liked 책 문서벡터
                    ∪ 카테고리, 태그 사전임베딩 벡터 ∪ memories[].vector
                    ∪ 이력 책들의 문서벡터(구매 3, 리뷰 4~5점 2, 담기 1) )
 태그 가중치 = 온보딩 태그 + 기억 type 집계(V1 미구현) + 이력 책들의 카테고리 점수
 → {centroid, tag_weights, cold_start, computed_at} 을 취향 프로필 테이블에 upsert
-   (computed_at = 위에서 실제로 읽은 이력 행들의 시각 중 최댓값. 계산 시각이 아니다)
+   (computed_at = 위에서 실제로 읽은 이력 행들의 시각 중 최댓값. 계산 시각이 아니다.
+    history로 받았으면 그때까지의 이력 전체가 실려 오므로 요청을 받은 시각)
 ```
 
 | 취향 조각 | 벡터 출처 | 언제 |
@@ -928,7 +948,7 @@ centroid = 가중평균( liked 책 문서벡터
 |---|---|---|
 | 400 | invalid_request | 형식 오류, onboarding 누락, 배열 상한 초과(reading_times 5, criteria 3, categories 3, tags 9), memories[].dim 불일치, memories[] 칸 위반 |
 | 401 | unauthorized | 서비스 토큰 없음, 불일치 |
-| 409 | idempotency_conflict | 같은 idempotency_key에 다른 본문. 재시도 중단 |
+| 409 | idempotency_conflict | 내지 않는다(멱등 키를 확인하지 않음, AI #303) |
 | 413 | payload_too_large | 요청 본문이 8MB 초과 |
 | 429 | rate_limited | V1은 내지 않는다(호출 한도를 두지 않음) |
 | 500 | internal_server_error | 서버 내부 오류 |
@@ -1545,13 +1565,15 @@ flowchart TB
 | 대화형 추천에 이미지 첨부 (V2) | /recommendations/chat, image_ref 포함 |
 | 추천 근거 상세 조회 | 없음. ③ 응답의 cards[].reason_long을 BE가 보관했다가 표시 |
 | 대화 세션 종료 후 야간 배치 (V2) | /preferences/extractions |
-| 온보딩 완료, 취향 기억 변경(개인화 추천에 동의한 사용자만) | /preferences/profile |
+| 온보딩 완료, 취향 기억 변경(개인화 추천에 동의한 사용자만) | /preferences/profile. 온보딩 완료는 POST, 취향 기억 변경은 PUT |
 | 밤 배치 맨 끝, ⑥을 다 부른 뒤 (V2) | /recommendations/feed/refresh |
-| 구매, 담기, 리뷰 발생 | 호출 없음. 복제로 넘어오고, AI가 채점할 때 복제 테이블에서 읽는다. 반영까지 최대 5분 |
+| 구매, 담기, 리뷰 발생 | 호출 없음. 복제로 넘어오고, AI가 채점할 때 복제 테이블에서 읽는다. 반영까지 최대 5분 ¹⁰ |
 | 판매, 평점 집계 갱신 | 호출 없음. BE가 원본을 갱신하고 복제가 도착하면 다음 요청부터 반영. 허용 지연 24시간 |
 | 챗봇에서 사용자가 쇼핑 요청을 함 (V2) | /recommendations/chat, 쇼핑 칸 포함. AI 서버가 ⑦로 넘기고 응답의 `route`가 `shop` ⁹ |
 
 ⁹ BE는 `/agent/act`를 직접 부르지 않는다(③ 입력 ⁸).
+
+¹⁰ ⑥에 `history`를 보내면 이력이 생기거나 빠지거나 바뀐 사용자를 모아 /preferences/profile을 다시 부른다(AI #307).
 
 판매량 순위 목록은 개인화가 없어 이 API의 범위가 아니다. 도서 상세의 추천 이유는 추천을 거친 조회에만 존재한다 — 챗봇 카드로 들어온 경우에만 긴 이유가 있고, 검색이나 카테고리로 바로 들어온 상세 페이지에는 이유 영역이 없다.
 
@@ -1562,7 +1584,7 @@ flowchart TB
 - **필드 완결성**: 문서에 적힌 응답 필드는 항상 존재. 빈 값은 null, [], {}. 조건부 필드도 해당 없을 땐 null. 빈 결과(0건, 카드 없음, 인식 실패, 추출 없음)는 오류가 아니라 200
 - **오류 본문**: 성공과 같은 envelope에 data: null. 사유는 message의 문자열
 - **인증**: BE→AI는 서비스 토큰(Authorization: Bearer). 없거나 틀리면 401. /health는 예외이며 내부망에서만 접근
-- **메서드 선택**: 부수효과가 없는 읽기는 GET, 상태를 바꾸거나 요청 본문이 필요한 것은 POST. **④ 피드와 ⑧ /health가 GET이다.** ④는 읽기 전용이라 재시도가 자유롭고 멱등 키가 필요 없다
+- **메서드 선택**: 부수효과가 없는 읽기는 GET, 상태를 바꾸거나 요청 본문이 필요한 것은 POST(⑥은 고칠 때 PUT). **④ 피드와 ⑧ /health가 GET이다.** ④는 읽기 전용이라 재시도가 자유롭고 멱등 키가 필요 없다
 - **메서드 선택, ①의 예외**: **① /search는 읽기지만 POST다.** 검색어가 사용자 자유 텍스트라, GET이면 쿼리스트링에 실려 access log·프록시 로그·APM 트레이스의 URI에 그대로 남는다. "대화 원문·검색어는 로그에 남기지 않는다"(인프라 설계)와 충돌해 본문으로 받는다. ④가 싣는 것은 ID와 enum뿐이라 같은 제약을 받지 않는다
 - **캐시**: 목록 응답은 Cache-Control: private, no-store. 개인화 결과이고 서버가 목록을 보관하지 않아 같은 URL이라도 호출마다 본문이 달라진다
 - **인증, 역방향**: AI→BE 호출은 없다(AI #489). 처음에는 ⑦이 방향 전용 서비스 토큰과 `user_id`로 BE 장바구니를 직접 바꾸는 안이었으나, 서비스 토큰만으로 아무 사용자의 장바구니를 바꿀 수 있어 BE가 반대했다(BE #284). 지금은 BE가 장바구니와 가격, 재고를 요청에 싣고, AI는 바꿀 것 목록(`actions`)만 돌려주며, BE가 그 사용자의 권한으로 검증해 반영한다
@@ -1577,14 +1599,14 @@ flowchart TB
 - **식별자**: book_id, user_id는 커머스의 정수 ID
 - **추천 이유의 보관**: 한 줄 이유와 긴 이유는 ③ 응답에서 한 번에 나오고 AI 서버는 저장하지 않는다. 상세 페이지에 쓸 긴 이유는 BE가 카드와 함께 보관한다. 이유 재생성 엔드포인트는 없다
 - **복제 방향**: DB 복제는 BE MySQL → AI PostgreSQL 한 방향이며 역방향 복제는 없다. AI가 만든 값이 BE에 저장되는 경로는 응답 본문뿐이고(⑦ `actions` 포함), 복제가 아니라 BE가 검증한 뒤 자기 테이블에 쓰는 것이다
-- **커머스 데이터의 주인**: 도서 카탈로그, 구매, 나의 도서관, 리뷰, 인기 집계의 원본 주인은 BE다. AI는 복제받은 사본을 조회만 하고 원본에는 쓰지 않으며, AI 서버에는 BE MySQL로 가는 연결이 없다. 요청 본문으로도 받지 않는다
+- **커머스 데이터의 주인**: 도서 카탈로그, 구매, 나의 도서관, 리뷰, 인기 집계의 원본 주인은 BE다. AI는 복제받은 사본을 조회만 하고 원본에는 쓰지 않으며, AI 서버에는 BE MySQL로 가는 연결이 없다. 가진 책(③④)과 이력(⑥)은 요청으로도 받는다(AI #307)
 - **복제 계약면**: 복제 대상 여섯 테이블과 그 컬럼 집합. 컬럼명·타입·의미 변경과 삭제는 복제를 끊으므로 BE가 사전에 알린다. 대상 목록과 테이블별 허용 지연은 ERD §2에 있다
 - **복제 지연·행 부재·장애**: 지연과 행 부재는 오류가 아니다. 지연이면 낡은 값 그대로 200, 행이 없으면 그 항을 0점으로 두고 200이며 X-Degraded는 붙지 않는다. AI Postgres 장애는 전면 500이고, BE MySQL 장애는 500이 아니라 복제만 멈춘다
 - **카탈로그 조인**: 목록 응답의 book_id는 모두 도서 카탈로그에 있는 것이다. 카탈로그에서 사라진 도서는 조인에서 빠지므로 한 페이지가 size보다 짧을 수 있다. **짧은 페이지는 목록의 끝이 아니며** 끝은 next_cursor: null로만 판정한다
 - **탈퇴 사용자의 취향 프로필**: AI가 소유하는 사용자 데이터는 취향 프로필 하나다. 회원 탈퇴 시 이 행도 지워야 하며, AI는 탈퇴 사실을 스스로 알 수 없어 BE가 알려 줘야 한다. 방법은 미정(ERD §5)
 - **이력 이중 반영 방지**: 프로필 행의 computed_at(내부 값)은 그 프로필이 **반영한 이력 행들의 최대 시각**이다. ③·④는 그보다 나중의 이력만 채점 때 더한다. 계산 시각이 아니라 반영 시각이라 복제가 늦게 도착한 이력도 빠지지 않는다. 반영한 이력이 없으면 이력 전부를 더한다
 - **이미지 입력**: BE가 올리고 Pre-signed URL을 image_ref로 넘김. AI 서버는 이미지를 저장하지 않음
-- **멱등 키(idempotency key)**: /preferences/profile, /agent/act의 idempotency_key는 같은 규약. 같은 키, 같은 본문 = 저장 결과 200, 같은 키, 다른 본문 = 409. 키, 결과 매핑은 최소 24시간 보관
+- **멱등 키(idempotency key)**: /agent/act의 idempotency_key는 같은 키, 같은 본문 = 저장 결과 200, 같은 키, 다른 본문 = 409. 키, 결과 매핑은 최소 24시간 보관. /preferences/profile은 키를 받기만 하고 확인하지 않는다(AI #303)
 - **멱등 키, ⑦**: AI는 BE를 부르지 않아 파생 키가 없다. `actions`는 최종 수량 방식이라 같은 목록을 두 번 반영해도 결과가 같다. 턴 전체 재시도는 본문 키로 막는다(`actions`를 낸 턴의 응답을 저장해 두었다가, 같은 키로 오면 LLM을 부르지 않고 그 응답을 돌려준다)
 - **커서, 방식**: 목록 API(검색, 피드)는 커서 방식. 요청 cursor / 응답 next_cursor, 마지막은 null
 - **커서, 불투명**: 서버가 서명한 문자열이라 클라이언트는 해석, 생성하지 않음. 위조, 변조는 410
