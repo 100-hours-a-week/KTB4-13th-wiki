@@ -4,7 +4,7 @@ type: spec
 group: ai-1
 owner: 김세훈
 status: 작성중
-updated: 2026-10-18
+updated: 2026-10-20
 sources:
   - 모델-API-설계.md
 limit_exempt: 원본 8개 엔드포인트의 필드표·에러표·규칙 문장을 자르지 않고 전부 보존 (변환 문서)
@@ -97,8 +97,7 @@ limit_exempt: 원본 8개 엔드포인트의 필드표·에러표·규칙 문장
     "price_min": 10000,
     "price_max": 20000,
     "pub_year_from": 2020,
-    "pub_year_to": 2026,
-    "in_stock_only": true
+    "pub_year_to": 2026
   },
   "sort": "relevance",
   "cursor": null,
@@ -109,14 +108,17 @@ limit_exempt: 원본 8개 엔드포인트의 필드표·에러표·규칙 문장
 | 필드 | 타입 | 필수 | 설명 |
 |---|---|---|---|
 | query | string | Y | 검색어. 1–200자 |
-| filters | object | N | 조회 조건. 이 값만 적용하고 검색어에서 조건을 추출하지 않는다 |
-| filters.category | string | N | 온보딩 관심 분류(소설, 에세이 등 13개). 대응표의 핵심 카탈로그 분류들로 거른다. 그 밖의 값은 400 |
+| filters | object | N | 조회 조건. 이 값만 적용하고 검색어에서 조건을 추출하지 않는다 ¹ |
+| filters.category | string | N | 온보딩 관심 분류(소설, 에세이 등 14개). 대응표의 핵심 카탈로그 분류들로 거르고, 그 밖의 값은 400 ² |
 | filters.price_min, .price_max | int | N | 판매가 구간(원) |
 | filters.pub_year_from, .pub_year_to | int | N | 출간연도 구간 |
-| filters.in_stock_only | bool | N | 품절 도서 제외 |
 | sort | enum | N | relevance(기본, 관련도), newest, price_asc, price_desc, popular(판매 수 기준, BE #68 합의) |
 | cursor | string? | N | 페이지 커서. 직전 응답의 next_cursor를 그대로 싣는다. 첫 턴은 생략. 30분 지나면 만료 |
 | size | int | N | 한 페이지 개수. 기본 15, 최대 50 |
+
+¹ 재고 조건(in_stock_only)은 없앴다(AI #335). 실려 와도 400이 아니라 무시한다
+
+² 어린이는 여러 분류에 흩어져 있어 분류로 가를 수 없다. 400이 아니라 거르지 않은 결과를 준다(AI #228)
 
 **출력** `200`
 
@@ -127,6 +129,7 @@ limit_exempt: 원본 8개 엔드포인트의 필드표·에러표·규칙 문장
     "results": [
       {
         "book_id": 2077,
+        "isbn": "9788900000073",
         "title": "여행의 이유",
         "author": "김영하",
         "publisher": "문학동네",
@@ -160,6 +163,7 @@ limit_exempt: 원본 8개 엔드포인트의 필드표·에러표·규칙 문장
 |---|---|---|
 | results | object[] | 검색 결과. 없으면 []. 키워드 200권+벡터 50권 후보 안에서만 나와 최대 약 250권 |
 | results[].book_id | int | 도서 ID |
+| results[].isbn | string? | ISBN-13. 책 표에 ISBN이 없는 도서는 null ¹ |
 | results[].title | string | 제목 |
 | results[].author, .publisher | string? | 저자, 출판사. 카탈로그에 값이 없는 도서는 null |
 | results[].price | int? | 판매가(원). 할인 적용 후. 상품이 없는 도서는 null |
@@ -168,6 +172,8 @@ limit_exempt: 원본 8개 엔드포인트의 필드표·에러표·규칙 문장
 | next_cursor | string? | 다음 페이지 커서. 마지막이면 null. 다음 요청의 cursor에 그대로 싣는다 |
 | fallback | object? | 결과가 0건일 때만 값이 있고 그 외 null |
 | fallback.message | string | 호출자에게 전달할 안내 문구 |
+
+¹ 책 번호를 ISBN으로 옮기는 중이라 book_id와 함께 싣는다(AI #313). 다 옮기면 book_id를 뺀다
 
 **에러**
 
@@ -588,6 +594,7 @@ LLM 장애면 1과 3을 건너뛰고 요청의 spec으로 2만 돌려 점수 상
 ```http
 # 첫 요청 또는 정렬, 필터를 바꿔 처음부터 다시 조회. cursor 없음
 GET /recommendations/feed?user_id=123&surface=home&size=15
+    &purchased_isbns=9788900000011,9788900000035&library_isbns=9788900000042
 
 # 이어서 조회. 직전 응답의 next_cursor를 그대로 싣는다(값은 URL 인코딩)
 GET /recommendations/feed?user_id=123&surface=recommend_more&sort=match
@@ -599,15 +606,21 @@ GET /recommendations/feed?user_id=123&surface=recommend_more&sort=match
 | user_id | int | Y | 사용자 ID. 비로그인은 호출 안 함 |
 | surface | enum | Y | 요청 맥락. home은 정렬, 필터를 받지 않고 recommend_more는 받는다 |
 | sort | enum | N | 정렬 기준 ¹ |
-| category | string | N | **필터.** 온보딩 관심 분류(13개). 대응표의 핵심 카탈로그 분류들로 거른다. 그 밖의 값은 400 |
+| category | string | N | **필터.** 온보딩 관심 분류(14개). 대응표의 핵심 카탈로그 분류들로 거르고, 그 밖의 값은 400 ² |
 | pub_year_from, pub_year_to | int | N | **필터.** 출간연도 구간 |
 | match_score_min | int | N | **필터.** 매칭 점수 하한 0–100. 이 값 미만은 목록에서 제외한다 |
 | size | int | N | 한 페이지 개수. 기본 15, 최대 50 |
 | cursor | string? | N | 페이지 커서. 직전 응답의 next_cursor 그대로. 첫 턴은 생략. 30분 만료 |
+| purchased_isbns | string | N | 산 책(결제 완료)의 ISBN-13을 쉼표로 이어 보낸다. 목록에서 뺀다 ³ |
+| library_isbns | string | N | 나의 도서관에 담은 책의 ISBN-13을 쉼표로 이어 보낸다. 목록에서 뺀다 ³ |
 
 ¹ match(기본), newest, price_asc. surface가 recommend_more일 때만 유효
 
-- **위 아홉 개가 허용 파라미터 전부이며, 그 밖의 키가 오면 400이다.** 정렬(`sort`)과 필터 세 종류(`category`, 출간연도 구간, `match_score_min`)는 `surface`가 `recommend_more`일 때만 유효하고, `home`에 오면 400이다.
+² 어린이는 여러 분류에 흩어져 있어 분류로 가를 수 없다. 400이 아니라 거르지 않은 목록을 준다(AI #228)
+
+³ BE가 요청마다 싣는다(AI #330). home에도 보낸다. **두 칸이 모두 없는 것과 값이 빈 칸은 뜻이 다르다.** 두 칸이 모두 없으면 아직 보내지 않는 것으로 보고 복제 테이블의 이력으로 뺀다. 한 칸이라도 오면 받은 목록으로만 빼고 복제 테이블을 읽지 않는다. 값이 빈 칸(`purchased_isbns=`)은 가진 책이 없다는 뜻이다. 별점 1–2점을 준 책은 따로 받지 않는다. 리뷰는 산 책에만 달 수 있어 산 책 목록에 들어 있다. ISBN은 13자리 숫자이고 형식이 틀리면 400이다. 책 표에 없는 ISBN은 건너뛴다
+
+- **위 열한 개가 허용 파라미터 전부이며, 그 밖의 키가 오면 400이다.** 같은 키를 두 번 보내도 400이라 목록은 쉼표로 이어 한 번만 보낸다. 정렬(`sort`)과 필터 세 종류(`category`, 출간연도 구간, `match_score_min`)는 `surface`가 `recommend_more`일 때만 유효하고, `home`에 오면 400이다.
 - **값은 URL 인코딩해서 싣는다.** 특히 `cursor`는 서버가 서명한 문자열이라 `+`·`/`·`=`가 섞이고, `category`는 한글이다.
 
 **출력** `200`
@@ -619,6 +632,7 @@ GET /recommendations/feed?user_id=123&surface=recommend_more&sort=match
     "items": [
       {
         "book_id": 3310,
+        "isbn": "9788900000066",
         "title": "아무튼, 산",
         "author": "장보영",
         "price": 9900,
@@ -637,6 +651,7 @@ GET /recommendations/feed?user_id=123&surface=recommend_more&sort=match
 |---|---|---|
 | items | object[] | 추천 목록. 없으면 [] |
 | items[].book_id | int | 도서 ID |
+| items[].isbn | string? | ISBN-13. 책 표에 ISBN이 없는 도서는 null ¹ |
 | items[].title | string | 제목 |
 | items[].author | string? | 저자. 카탈로그에 값이 없는 도서는 null |
 | items[].price, .in_stock | int?, bool | 판매가(원), 재고 여부. 상품이 없는 도서는 null, false |
@@ -645,8 +660,10 @@ GET /recommendations/feed?user_id=123&surface=recommend_more&sort=match
 | next_cursor | string? | 다음 페이지 커서. 마지막이면 null |
 | cold_start | bool | true면 취향 정보가 없어 개인화를 끄고, 판매 수 있는 도서를 색인 순서로 먼저·나머지는 신간순으로 이어 붙여 채움(최대 500권) |
 
+¹ 책 번호를 ISBN으로 옮기는 중이라 book_id와 함께 싣는다(AI #313). 다 옮기면 book_id를 뺀다
+
 - **피드 항목에는 추천 이유 문구가 없다.** 순서와 `match_score`만 낸다. 이유는 대화형 추천 카드에서만 나온다(③의 `reason_short`·`reason_long`). 피드가 LLM을 호출하지 않는다는 원칙을 지키기 위해서다.
-- 커서 제외 규칙의 ’조회, 구매 이력’은 `v_user_purchases`, `v_user_library`를 말한다. 이미 산 책과 담은 책, 별점 1–2점을 준 책은 목록에서 빼되, 커서 발급 이후에 생긴 것은 제외 대상에서 뺀다(카드를 보고 돌아와 스크롤해도 목록이 밀리지 않게).
+- 커서 제외 규칙의 ’조회, 구매 이력’은 `v_user_purchases`, `v_user_library`를 말한다. 이미 산 책과 담은 책, 별점 1–2점을 준 책은 목록에서 빼되, 커서 발급 이후에 생긴 것은 제외 대상에서 뺀다(카드를 보고 돌아와 스크롤해도 목록이 밀리지 않게). 입력 ³의 두 칸을 보내면 이 예외가 없다. 받은 목록에는 책마다의 시각이 없어, 스크롤하는 사이에 산 책도 다음 페이지에서 바로 빠진다.
 - 카탈로그에서 사라진 도서(삭제·비공개)는 `v_books` 조인에서 빠지므로 **한 페이지가 `size`보다 짧을 수 있다.** 짧은 페이지는 목록의 끝이 아니며, 끝은 `next_cursor: null`로만 판정한다.
 - 필터 없이 후보가 0건인 경우는 없다. 필터로 0건이면 `items: []`, `next_cursor: null`로 200을 돌려준다. 에러가 아니며 필터를 임의로 풀지 않는다.
 - **응답에 `Cache-Control: private, no-store`를 붙인다.** 개인화 목록인 데다 서버가 결과를 보관하지 않아 같은 URL이라도 호출할 때마다 본문이 달라진다. 중간 캐시가 응답을 재사용하면 남의 목록이 다른 사용자에게 나갈 수 있다.
@@ -655,7 +672,7 @@ GET /recommendations/feed?user_id=123&surface=recommend_more&sort=match
 
 | 상태 | message | 언제 |
 |---|---|---|
-| 400 | invalid_request | 형식 오류, 허용 목록에 없는 쿼리 파라미터, home에 정렬·필터, size 50 초과, category가 온보딩 값이 아님 |
+| 400 | invalid_request | 형식 오류, 허용 목록에 없는 쿼리 파라미터, 같은 키를 두 번 보냄, home에 정렬·필터, size 50 초과, category가 온보딩 값이 아님, ISBN 형식이 틀림 |
 | 401 | unauthorized | 서비스 토큰 없음, 불일치 |
 | 410 | cursor_expired | 커서가 만료됐거나 필터, 정렬, surface, 응답 모드(personalized/cold_start/rule-only)가 발급 때와 다름. 첫 페이지부터 다시 |
 | 429 | rate_limited | V1은 내지 않는다(호출 한도를 두지 않음) |
