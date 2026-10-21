@@ -146,10 +146,14 @@ BE에서 도서가 삭제되어 복제로 `v_books` 행이 지워지면 이 행�
   "book_first_seen": { "9788937462788": "2026-10-15" },
   "feed": {
     "books": [{ "book_id": 123, "interest": "추리/스릴러", "match_score": 72 }],
-    "substituted": ["요리"]
+    "substituted": ["요리"],
+    "owned": [456, 789],
+    "disliked": [789]
   }
 }
 ```
+
+`feed`의 `owned`는 목록을 뽑을 때 뺀 가진 책(이력의 책과 2점 이하 리뷰 책), `disliked`는 그중 2점 이하 리뷰 책이다. 요청이 없는 ⑨가 목록을 다시 뽑을 때 복제한 이력 대신 읽는다(AI #537).
 
 ### 3.3 idempotency_records
 
