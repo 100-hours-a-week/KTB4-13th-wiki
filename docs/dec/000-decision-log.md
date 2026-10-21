@@ -4,12 +4,13 @@ type: decision-log
 group: dec-000
 owner: 김세훈
 status: 작성중
-updated: 2026-10-20
+updated: 2026-10-22
 ---
 **요약** 프로젝트의 모든 기술 결정을 한 줄씩 모은 입구. 상세는 링크를 따라간다.
 
 | 날짜 | 파트 | 결정 | 영향 파트 | 상세 |
 |---|---|---|---|---|
+| 10-22 | AI | ③ 묻는 턴의 답 보기는 `followup_options`에 싣고, 누르면 `message`로 보낸다(BE·FE 확인 대기, AI #505) | AI, BE, FE | [모델 API 명세 ③](../ai/1-model-api/spec.md) |
 | 10-18 | AI | ⑦은 BE를 부르지 않고 바꿀 것 목록(`actions`)만 돌려준다(AI #489, BE #284) | AI, BE, FE | [모델 API 명세 ⑦](../ai/1-model-api/spec.md) |
 | 10-18 | AI | ⑦ 담긴 책은 수량을 말할 때만 바꾸고, 한 번에 시킨 쓰기는 모두 되거나 모두 안 된다(AI #489) | AI, BE | [모델 API 명세 ⑦](../ai/1-model-api/spec.md) |
 | 10-18 | AI | ③도 `recent_turns`의 200자 초과 줄은 400 대신 뒤쪽 200자만 쓴다(AI #490) | AI, BE | [모델 API 명세 ③](../ai/1-model-api/spec.md) |
