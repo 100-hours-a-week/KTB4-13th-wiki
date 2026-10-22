@@ -13,6 +13,7 @@ updated: 2026-10-20
 | 10-18 | AI | ⑦은 BE를 부르지 않고 바꿀 것 목록(`actions`)만 돌려준다(AI #489, BE #284) | AI, BE, FE | [모델 API 명세 ⑦](../ai/1-model-api/spec.md) |
 | 10-18 | AI | ⑦ 담긴 책은 수량을 말할 때만 바꾸고, 한 번에 시킨 쓰기는 모두 되거나 모두 안 된다(AI #489) | AI, BE | [모델 API 명세 ⑦](../ai/1-model-api/spec.md) |
 | 10-18 | AI | ③도 `recent_turns`의 200자 초과 줄은 400 대신 뒤쪽 200자만 쓴다(AI #490) | AI, BE | [모델 API 명세 ③](../ai/1-model-api/spec.md) |
+| 10-16 | AI | AI DB에 책 분류 표와 프로필의 관심사·추천 목록 칸을 더하고, 적용은 클라우드가 한다(AI #395) | AI, CLD | [ERD 3.2·3.12](../ai/9-data-erd/spec.md) |
 | 10-16 | AI | ⑤ 신뢰도를 세기로 바꾸고 어디에·핵심어를 더한다(AI #395) | AI, BE | [모델 API 명세 ⑤](../ai/1-model-api/spec.md) |
 | 10-16 | AI | ⑥ 요청의 취향 기억에 세기·어디에·핵심어·저장한 때를 싣는다(AI #395) | AI, BE | [모델 API 명세 ⑥](../ai/1-model-api/spec.md) |
 | 10-16 | AI | ⑨ 대체 자리 다시 뽑기를 BE 밤 배치 맨 끝에 부른다(AI #395) | AI, BE | [모델 API 명세 ⑨](../ai/1-model-api/spec.md) |
