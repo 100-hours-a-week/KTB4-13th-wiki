@@ -4,7 +4,7 @@ type: spec
 group: ai-1
 owner: 김세훈
 status: 작성중
-updated: 2026-11-09
+updated: 2026-11-10
 sources:
   - 모델-API-설계.md
 limit_exempt: 원본 8개 엔드포인트의 필드표·에러표·규칙 문장을 자르지 않고 전부 보존 (변환 문서)
@@ -129,7 +129,6 @@ limit_exempt: 원본 8개 엔드포인트의 필드표·에러표·규칙 문장
   "data": {
     "results": [
       {
-        "book_id": 2077,
         "isbn": "9788900000073",
         "title": "여행의 이유",
         "author": "김영하",
@@ -163,7 +162,6 @@ limit_exempt: 원본 8개 엔드포인트의 필드표·에러표·규칙 문장
 | 필드 | 타입 | 설명 |
 |---|---|---|
 | results | object[] | 검색 결과. 없으면 []. 키워드 200권+벡터 50권 후보 안에서만 나와 최대 약 250권 |
-| results[].book_id | int | 도서 ID |
 | results[].isbn | string? | ISBN-13. 책 표에 ISBN이 없는 도서는 null ¹ |
 | results[].title | string | 제목 |
 | results[].author, .publisher | string? | 저자, 출판사. 카탈로그에 값이 없는 도서는 null |
@@ -174,7 +172,7 @@ limit_exempt: 원본 8개 엔드포인트의 필드표·에러표·규칙 문장
 | fallback | object? | 결과가 0건일 때만 값이 있고 그 외 null |
 | fallback.message | string | 호출자에게 전달할 안내 문구 |
 
-¹ 책 번호를 ISBN으로 옮기는 중이라 book_id와 함께 싣는다(AI #313). 다 옮기면 book_id를 뺀다
+¹ 책은 isbn으로만 가리킨다. book_id는 뺐다(AI #308)
 
 **에러**
 
@@ -294,7 +292,6 @@ LLM 장애면 1과 3을 건너뛰고 요청의 spec으로 2만 돌려 점수 상
   "spec": { "…": "현재 추천 조건(6키 전체)" },
   "message": "너무 무겁지 않은 걸로",
   "recent_turns": [{ "role": "user", "text": "비 오는 날 읽을 책 추천해줘" }],
-  "exclude_book_ids": [],
   "exclude_isbns": ["9788900000042"],
   "purchased_isbns": ["9788900000035"],
   "library_isbns": [],
@@ -309,8 +306,7 @@ LLM 장애면 1과 3을 건너뛰고 요청의 spec으로 2만 돌려 점수 상
 | spec | object | Y | spec(추천 조건 객체, 6개 키) ¹ |
 | message | string | N | 이번 턴의 사용자 메시지 ² |
 | recent_turns | object[] | N | 최근 대화(role, text) ³ |
-| exclude_book_ids | int[] | N | 이 대화에서 이미 보여준 도서 ID. 같은 책이 또 나오지 않게 검색에서 제외(사용자가 뺀 spec.exclude와 합쳐서) ⁶ |
-| exclude_isbns | string[] | N | 이 대화에서 이미 보여준 도서의 ISBN-13. exclude_book_ids와 합쳐서 제외 ⁶ |
+| exclude_isbns | string[] | N | 이 대화에서 이미 보여준 도서의 ISBN-13. 같은 책이 또 나오지 않게 검색에서 제외(사용자가 뺀 spec.exclude와 합쳐서) ⁶ |
 | purchased_isbns | string[]? | N | 산 책(결제 완료)의 ISBN-13. 후보에서 뺀다 ⁷ |
 | library_isbns | string[]? | N | 나의 도서관에 담은 책의 ISBN-13. 후보에서 뺀다 ⁷ |
 | image_ref | string? | N | (V2) 표지 사진의 Pre-signed URL(BE가 업로드 후 발급) ⁴ |
@@ -333,7 +329,7 @@ LLM 장애면 1과 3을 건너뛰고 요청의 spec으로 2만 돌려 점수 상
 
 ⁵ V1에서는 동작에 영향 없음. 개인화는 취향 프로필 유무로 판단한다(AI #266). V2에서 false면 대화에서 취향을 뽑지 않는다
 
-⁶ 책 번호를 ISBN으로 옮기는 중이라 두 칸을 다 받는다(AI #317). 다 옮기면 exclude_book_ids를 뺀다. ISBN은 13자리 숫자 문자열이고 형식이 틀리면 400이다. 책 표에 없는 ISBN은 건너뛴다
+⁶ 옛 칸 exclude_book_ids는 뺐다(AI #308). 실려 와도 400이 아니라 무시한다. ISBN은 13자리 숫자 문자열이고 형식이 틀리면 400이다. 책 표에 없는 ISBN은 건너뛴다
 
 ⁷ BE가 요청마다 싣는다(AI #319). **칸이 없거나 null인 것과 빈 목록 []은 뜻이 다르다.** 두 칸이 모두 없거나 null이면 아직 보내지 않는 것으로 보고 복제 테이블의 이력으로 뺀다. 빈 목록은 가진 책이 없다는 뜻이라 복제 테이블을 읽지 않는다. 그래서 목록을 채우기 전에 []부터 보내면 산 책이 다시 추천된다. 별점 1–2점을 준 책은 따로 받지 않는다. 리뷰는 산 책에만 달 수 있어 산 책 목록에 들어 있다. 형식과 책 표에 없는 ISBN은 ⁶과 같다. 목록 개수 상한은 아직 정하지 않았다(BE #252). 요청 본문은 64KB까지이고 넘으면 413이다
 
@@ -392,7 +388,6 @@ LLM 장애면 1과 3을 건너뛰고 요청의 spec으로 2만 돌려 점수 상
     "recognition": null,
     "cards": [
       {
-        "book_id": 1088,
         "isbn": "9788900000011",
         "rank": 1,
         "match_score": 87,
@@ -464,7 +459,7 @@ LLM 장애면 1과 3을 건너뛰고 요청의 spec으로 2만 돌려 점수 상
     "reply": "이 책은 《달러구트 꿈 백화점》(이미예)예요. 잠든 사이 꿈을 사고파는 상점 이야기예요. 비슷한 결의 책도 함께 골라봤어요.",
     "spec": { "…": "anchor_book이 1088로 갱신된 추천 조건" },
     "recognition": { "recognized": true, "book_id": 1088, "candidates": [] },
-    "cards": [{ "book_id": 4021, "rank": 1, "…": "일반 턴과 같은 카드 형식" }],
+    "cards": [{ "isbn": "9788900000042", "rank": 1, "…": "일반 턴과 같은 카드 형식" }],
     "followup": null,
     "buttons": [
       { "label": "네", "action": "library_add", "book_id": 1088 },
@@ -525,7 +520,6 @@ LLM 장애면 1과 3을 건너뛰고 요청의 spec으로 2만 돌려 점수 상
 | reply | string | 말풍선 1–2문장(이미지 턴은 책 소개). 최대 200자. 스트리밍(V2) 시 이 필드만 흘려보냄 |
 | spec | object | 업데이트된 spec(6개 키). 다음 턴 요청에 그대로 싣는다 |
 | cards | object[] | 추천 카드 최대 3장, 배열 순서가 순위 ¹ |
-| cards[].book_id | int | 도서 ID |
 | cards[].isbn | string? | ISBN-13. 책 표에 ISBN이 없는 도서는 null ⁵ |
 | cards[].rank | int | 추천 순위 1–3. 배열 순서와 같다 |
 | cards[].match_score | int | 매칭 점수 0–100 ² |
@@ -552,7 +546,7 @@ LLM 장애면 1과 3을 건너뛰고 요청의 spec으로 2만 돌려 점수 상
 
 ⁴ 항목: book_id, title, author, cover_url, confidence(0–1, 내부 판정용). 그 외 []
 
-⁵ 책 번호를 ISBN으로 옮기는 중이라 book_id와 함께 싣는다(AI #317). 다 옮기면 book_id를 뺀다
+⁵ 카드의 책은 isbn으로만 가리킨다. book_id는 뺐다(AI #308)
 
 - **긴 이유는 이 응답이 마지막 생성 지점이다.** AI 서버는 카드를 캐시하지 않으므로, BE가 `reason_long`을 카드와 함께 보관했다가 상세 페이지에서 그대로 보여준다. 같은 책을 다시 상세로 열어도 AI를 부르지 않는다.
 - 두 이유는 같은 근거(`match_basis`)에서 나온다. 한 줄 이유는 카드 한 줄, 긴 이유는 그 근거를 질의와 취향에 붙여 2–4문장으로 푼 것이다.
@@ -632,7 +626,6 @@ GET /recommendations/feed?user_id=123&surface=recommend_more&sort=match
   "data": {
     "items": [
       {
-        "book_id": 3310,
         "isbn": "9788900000066",
         "title": "아무튼, 산",
         "author": "장보영",
@@ -651,7 +644,6 @@ GET /recommendations/feed?user_id=123&surface=recommend_more&sort=match
 | 필드 | 타입 | 설명 |
 |---|---|---|
 | items | object[] | 추천 목록. 없으면 [] |
-| items[].book_id | int | 도서 ID |
 | items[].isbn | string? | ISBN-13. 책 표에 ISBN이 없는 도서는 null ¹ |
 | items[].title | string | 제목 |
 | items[].author | string? | 저자. 카탈로그에 값이 없는 도서는 null |
@@ -661,7 +653,7 @@ GET /recommendations/feed?user_id=123&surface=recommend_more&sort=match
 | next_cursor | string? | 다음 페이지 커서. 마지막이면 null |
 | cold_start | bool | true면 취향 정보가 없어 개인화를 끄고, 판매 수 있는 도서를 색인 순서로 먼저·나머지는 신간순으로 이어 붙여 채움(최대 500권) |
 
-¹ 책 번호를 ISBN으로 옮기는 중이라 book_id와 함께 싣는다(AI #313). 다 옮기면 book_id를 뺀다
+¹ 책은 isbn으로만 가리킨다. book_id는 뺐다(AI #308)
 
 - **피드 항목에는 추천 이유 문구가 없다.** 순서와 `match_score`만 낸다. 이유는 대화형 추천 카드에서만 나온다(③의 `reason_short`·`reason_long`). 피드가 LLM을 호출하지 않는다는 원칙을 지키기 위해서다.
 - 커서 제외 규칙의 ’조회, 구매 이력’은 `v_user_purchases`, `v_user_library`를 말한다. 이미 산 책과 담은 책, 별점 1–2점을 준 책은 목록에서 빼되, 커서 발급 이후에 생긴 것은 제외 대상에서 뺀다(카드를 보고 돌아와 스크롤해도 목록이 밀리지 않게). 입력 ³의 두 칸을 보내면 이 예외가 없다. 받은 목록에는 책마다의 시각이 없어, 스크롤하는 사이에 산 책도 다음 페이지에서 바로 빠진다.
@@ -805,7 +797,6 @@ GET /recommendations/feed?user_id=123&surface=recommend_more&sort=match
     "criteria": ["베스트셀러"],
     "categories": ["에세이", "한국소설"],
     "tags": ["힐링", "성장"],
-    "liked_book_ids": [1088, 3310],
     "liked_isbns": ["9788900000011"]
   },
   "memories": [
@@ -849,8 +840,7 @@ GET /recommendations/feed?user_id=123&surface=recommend_more&sort=match
 | onboarding.criteria | string[] | N | 책 고르는 기준 최대 3개(보기: 좋아하는 출판사 / 베스트셀러 / 리뷰, 별점)이며 V1은 받기만 하고 추천에 쓰지 않는다 |
 | onboarding.categories | string[] | N | 관심 대분류(앱 화면 값). 최대 3개. ①④ 필터의 category와 같은 값이다. 카탈로그 분류와는 대응표로 잇고, 대응표에 없는 값은 건너뛴다 |
 | onboarding.tags | string[] | N | 세부 태그. 최대 9개 |
-| onboarding.liked_book_ids | int[] | N | 마음에 드는 책 ID. 0권 가능, 상한 없음. 서버는 앞 50권만 씀 |
-| onboarding.liked_isbns | string[] | N | 마음에 드는 책의 ISBN-13 ⁶ |
+| onboarding.liked_isbns | string[] | N | 마음에 드는 책의 ISBN-13. 0권 가능, 상한 없음. 서버는 앞 50권만 씀 ⁶ |
 | memories | object[] | N | 저장된 취향 기억 전체. 사용자가 지운 것은 빼고 보낸다 ³ |
 | memories[].type | enum | Y | ⑤가 준 값(mood, topic, author, condition) |
 | memories[].value | string | Y | ⑤가 준 값 |
@@ -878,7 +868,7 @@ GET /recommendations/feed?user_id=123&surface=recommend_more&sort=match
 
 ⁵ 날짜·시각(한국 시간). 예: `2026-09-04T00:12:30.123456`. 소수점 아래는 없어도 된다. 같은 관심사를 좋아한다고도 싫다고도 했을 때 어느 쪽이 나중인지 가리는 데 쓴다. 같은 밤에 저장된 줄끼리도 가려야 해서 마이크로초까지 보낸다
 
-⁶ 책 번호를 ISBN으로 옮기는 중이라 `liked_book_ids`와 둘 다 받는다(AI #315). 둘 다 오면 ISBN으로 온 책을 앞에 두고 합쳐서 앞 50권을 쓴다. 다 옮기면 `liked_book_ids`를 뺀다. ISBN은 13자리 숫자 문자열이고 형식이 틀리면 400이다. 책 표에 없는 ISBN은 건너뛴다
+⁶ 옛 칸 `liked_book_ids`는 뺐다(AI #308). 실려 와도 400이 아니라 무시한다. ISBN은 13자리 숫자 문자열이고 형식이 틀리면 400이다. 책 표에 없는 ISBN은 건너뛴다
 
 ⁷ **칸이 없거나 null인 것과 빈 객체 {}는 뜻이 다르다.** 없거나 null이면 아직 보내지 않는 것으로 보고 복제 테이블의 이력을 읽는다. {}나 빈 목록은 이력이 없다는 뜻이라 복제 테이블을 읽지 않는다. 그래서 이력을 채우기 전에 {}부터 보내면 이력이 빠진 프로필이 된다. 안의 목록이 null이면 빈 목록으로 본다. 가중치는 아래 이력 가중치 표와 같다. ISBN 형식과 책 표에 없는 ISBN은 ⁶과 같다
 
@@ -918,7 +908,7 @@ centroid = 가중평균( liked 책 문서벡터
 
 | 취향 조각 | 벡터 출처 | 언제 |
 |---|---|---|
-| 좋아한 책 (liked_book_ids) | 책 적재 때 만든 벡터 재사용 | 이미 있음 |
+| 좋아한 책 (liked_isbns) | 책 적재 때 만든 벡터 재사용 | 이미 있음 |
 | 구매, 도서관, 리뷰 책 (이력 3종) | 같은 도서 임베딩 재사용 | 이미 있음 |
 | 관심 작가 (memories type: author) | 기억 핵심어 벡터 그대로 (`memories[].vector`) | 야간 배치, 줄당 1번 |
 | 관심 카테고리, 태그 | 종류가 적어 미리 벡터로 | 미리 만들어 둠 |
@@ -1642,20 +1632,20 @@ flowchart TB
 - **캐시**: 목록 응답은 Cache-Control: private, no-store. 개인화 결과이고 서버가 목록을 보관하지 않아 같은 URL이라도 호출마다 본문이 달라진다
 - **인증, 역방향**: AI→BE 호출은 없다(AI #489). 처음에는 ⑦이 방향 전용 서비스 토큰과 `user_id`로 BE 장바구니를 직접 바꾸는 안이었으나, 서비스 토큰만으로 아무 사용자의 장바구니를 바꿀 수 있어 BE가 반대했다(BE #284). 지금은 BE가 장바구니와 가격, 재고를 요청에 싣고, AI는 바꿀 것 목록(`actions`)만 돌려주며, BE가 그 사용자의 권한으로 검증해 반영한다
 - **상관관계 ID**: 모든 요청에 X-Request-Id 헤더 권장. 없으면 서버가 만들어 응답 헤더로 돌려줌. 로그를 이어 붙이는 키
-- **상한 초과 처리**: 개수 상한 초과는 N개만 쓰고 200(recent_turns 20, conversation 40, memories 500은 최근 것, liked_book_ids 50은 앞의 것). 항목 길이, 형식, 값 범위 위반과 size 50 초과는 400. 예외. context_cards(최대 10)는 초과 시 400(앞을 자르면 “N번” 해석이 어긋남). 예외. recent_turns의 한 줄이 200자를 넘으면 400이 아니라 뒤쪽 200자만 쓴다(③⑦, AI #402, #490). 예외. ⑦ `cart`(최대 30줄)와 `offers`(최대 20권)는 초과 시 400(장바구니 일부를 버리면 바꿀 것 목록이 틀린다)
+- **상한 초과 처리**: 개수 상한 초과는 N개만 쓰고 200(recent_turns 20, conversation 40, memories 500은 최근 것, liked_isbns 50은 앞의 것). 항목 길이, 형식, 값 범위 위반과 size 50 초과는 400. 예외. context_cards(최대 10)는 초과 시 400(앞을 자르면 “N번” 해석이 어긋남). 예외. recent_turns의 한 줄이 200자를 넘으면 400이 아니라 뒤쪽 200자만 쓴다(③⑦, AI #402, #490). 예외. ⑦ `cart`(최대 30줄)와 `offers`(최대 20권)는 초과 시 400(장바구니 일부를 버리면 바꿀 것 목록이 틀린다)
 - **점수 필드**: 사용자에게 보이는 점수는 match_score(0–100)뿐. 인기 집계(판매, 평점, 리뷰 수)는 순위 계산 입력이며 그대로 노출하지 않는다
 - **점수 필드 예외**: 응답에 싣되 사용자에게 노출하지 않는 0–1 값: 표지 후보 confidence
 - **축소 알림 헤더**: X-Degraded. 축소 응답일 때만 붙는다. keyword-only(검색), rule-only(피드). BE가 FE로 전달. **값은 이 둘뿐이며 복제 지연·행 부재에는 붙이지 않는다**
 - **축소 알림, 본문**: 챗봇 추천은 헤더 대신 본문 data.degraded로 알림. V2에서 스트리밍하면 200 헤더가 먼저 나가 헤더를 못 붙이기 때문
 - **재시도 헤더**: Retry-After. 429, 503에만
 - **대화 원문**: AI 서버는 저장하지 않고 로그에서도 가림. V1은 세션 안에서만, V2 스레드 보관은 BE 몫. **V2 대화 스레드는 복제 대상이 아니다**
-- **식별자**: book_id, user_id는 커머스의 정수 ID
+- **식별자**: BE와 주고받는 책은 ISBN-13 문자열로 가리킨다(AI #308). user_id는 커머스의 정수 ID
 - **추천 이유의 보관**: 한 줄 이유와 긴 이유는 ③ 응답에서 한 번에 나오고 AI 서버는 저장하지 않는다. 상세 페이지에 쓸 긴 이유는 BE가 카드와 함께 보관한다. 이유 재생성 엔드포인트는 없다
 - **복제 방향**: DB 복제는 BE MySQL → AI PostgreSQL 한 방향이며 역방향 복제는 없다. AI가 만든 값이 BE에 저장되는 경로는 응답 본문뿐이고(⑦ `actions` 포함), 복제가 아니라 BE가 검증한 뒤 자기 테이블에 쓰는 것이다
 - **커머스 데이터의 주인**: 도서 카탈로그, 구매, 나의 도서관, 리뷰, 인기 집계의 원본 주인은 BE다. AI는 복제받은 사본을 조회만 하고 원본에는 쓰지 않으며, AI 서버에는 BE MySQL로 가는 연결이 없다. 가진 책(③④)과 이력(⑥)은 요청으로도 받는다(AI #307)
 - **복제 계약면**: 복제 대상 여섯 테이블과 그 컬럼 집합. 컬럼명·타입·의미 변경과 삭제는 복제를 끊으므로 BE가 사전에 알린다. 대상 목록과 테이블별 허용 지연은 ERD §2에 있다
 - **복제 지연·행 부재·장애**: 지연과 행 부재는 오류가 아니다. 지연이면 낡은 값 그대로 200, 행이 없으면 그 항을 0점으로 두고 200이며 X-Degraded는 붙지 않는다. AI Postgres 장애는 전면 500이고, BE MySQL 장애는 500이 아니라 복제만 멈춘다
-- **카탈로그 조인**: 목록 응답의 book_id는 모두 도서 카탈로그에 있는 것이다. 카탈로그에서 사라진 도서는 조인에서 빠지므로 한 페이지가 size보다 짧을 수 있다. **짧은 페이지는 목록의 끝이 아니며** 끝은 next_cursor: null로만 판정한다
+- **카탈로그 조인**: 목록 응답의 책은 모두 도서 카탈로그에 있는 것이다. 카탈로그에서 사라진 도서는 조인에서 빠지므로 한 페이지가 size보다 짧을 수 있다. **짧은 페이지는 목록의 끝이 아니며** 끝은 next_cursor: null로만 판정한다
 - **탈퇴 사용자의 취향 프로필**: AI가 소유하는 사용자 데이터는 취향 프로필 하나다. 회원 탈퇴 시 이 행도 지워야 하며, AI는 탈퇴 사실을 스스로 알 수 없어 BE가 알려 줘야 한다. BE가 회원 최종 탈퇴와 개인화 동의 철회 때 ⑩으로 지운다(AI #270)
 - **이력 이중 반영 방지**: 프로필 행의 computed_at(내부 값)은 그 프로필이 **반영한 이력 행들의 최대 시각**이다. ③·④는 그보다 나중의 이력만 채점 때 더한다. 계산 시각이 아니라 반영 시각이라 복제가 늦게 도착한 이력도 빠지지 않는다. 반영한 이력이 없으면 이력 전부를 더한다
 - **이미지 입력**: BE가 올리고 Pre-signed URL을 image_ref로 넘김. AI 서버는 이미지를 저장하지 않음
