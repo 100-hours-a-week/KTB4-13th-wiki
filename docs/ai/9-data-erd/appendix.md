@@ -21,7 +21,7 @@ flowchart LR
     end
     subgraph AIDB["AI PostgreSQL + pgvector"]
         REP[("BE 복제 · 읽기만<br/>v_books · v_book_popularity<br/>v_user_purchases<br/>v_user_library · v_user_reviews")]
-        OWN[("AI 소유 · 쓰기<br/>book_embeddings<br/>taste_profile<br/>idempotency_records")]
+        OWN[("AI 소유 · 쓰기<br/>book_embeddings<br/>taste_profile<br/>idempotency_records<br/>book_classes")]
     end
     BE --- SRC
     AI --- REP
@@ -43,6 +43,7 @@ erDiagram
     USERS ||--o{ V_USER_LIBRARY : "user_id"
     USERS ||--o{ V_USER_REVIEWS : "user_id"
     V_BOOKS ||--o| BOOK_EMBEDDINGS : "book_id (FK, cascade)"
+    V_BOOKS ||--o| BOOK_CLASSES : "isbn13 (FK 아님)"
     V_BOOKS ||--o| V_BOOK_POPULARITY : "book_id"
     V_BOOKS ||--o{ V_USER_PURCHASES : "book_id"
     V_BOOKS ||--o{ V_USER_LIBRARY : "book_id"
@@ -61,6 +62,22 @@ erDiagram
         bool cold_start "개인화 비활성 여부"
         int profile_version "순위 영향 값 변경 시 증가"
         timestamptz computed_at "반영한 이력의 최대 시각. null 허용"
+        jsonb interest_scores "관심사마다 재료별 점수"
+        jsonb interest_vectors "관심사마다 검색어 벡터"
+        jsonb conditions "조건 목록"
+        jsonb book_first_seen "이력의 책을 처음 본 날"
+        jsonb feed "추천 목록 200권. null 허용"
+        int feed_version "추천 목록 판 번호"
+        jsonb feed_prev "앞 판 목록. null 허용"
+        bool feed_partial "대신 채운 자리가 있음"
+    }
+    BOOK_CLASSES {
+        string isbn13 PK "AI 소유. 수집 덤프로 채움"
+        string class_no "세부 분류 번호. null 허용"
+        string reader_code "독자 대상. null 허용"
+        string form_code "형태. null 허용"
+        int page_count "쪽수. null 허용"
+        timestamptz loaded_at "넣은 시각"
     }
     IDEMPOTENCY_RECORDS {
         string idempotency_key PK "AI 소유"
