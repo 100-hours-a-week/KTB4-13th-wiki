@@ -566,7 +566,7 @@ LLM 장애면 1과 3을 건너뛰고 요청의 spec으로 2만 돌려 점수 상
 | 400 | invalid_request | 형식, 길이 위반. message와 image_ref가 둘 다 있거나 둘 다 없어도 400 |
 | 401 | unauthorized | 서비스 토큰 없음, 불일치 |
 | 422 | spec_schema_violation | 요청의 spec이 형식 위반. 호출자가 초기 spec으로 되돌려 1회 재시도 |
-| 429 | rate_limited | 호출 한도 초과. Retry-After 헤더(대기 초)를 함께 보냄 |
+| 429 | rate_limited | 내지 않는다(호출 한도를 두지 않음) |
 | 500 | internal_server_error | 서버 내부 오류 |
 | 404 | image_not_found | (V2) image_ref로 이미지를 못 찾음(URL 만료 포함) |
 | 413 | payload_too_large | 요청 본문 64KB 초과. (V2) 이미지 10MB 초과면 재촬영, 압축 안내 |
@@ -773,7 +773,7 @@ GET /recommendations/feed?user_id=123&surface=recommend_more&sort=match
 | 400 | invalid_request | 형식, 길이 위반(text 4,000자 초과 등) |
 | 401 | unauthorized | 서비스 토큰 없음, 불일치 |
 | 413 | payload_too_large | 요청 본문이 2MB 초과 |
-| 429 | rate_limited | 호출 한도 초과. Retry-After 헤더(대기 초)를 함께 보냄 |
+| 429 | rate_limited | 내지 않는다(호출 한도를 두지 않음) |
 | 500 | internal_server_error | 서버 내부 오류 |
 | 503 | upstream_unavailable | 외부 LLM 또는 임베딩 업스트림 장애. 배치는 다음 날 밤 다시 돌리면 됨 |
 | 504 | generation_timeout | 생성 30초 초과 |
