@@ -339,7 +339,7 @@ AI 책 분류 표다(AI #421). 세부 분류 번호(정보나루 KDC 세분류),
 | 홈 피드 | taste_profile, book_embeddings, v_books, v_book_popularity, 이력 3종(computed_at 이후분) ¹ | 없음 | 결과 목록, 커서 |
 | 취향 기억 추출 | 요청의 대화와 기존 취향 | 없음. 저장은 BE | 대화 |
 | 취향 프로필 생성 | book_embeddings, v_books(이력 책의 카테고리), 이력 3종, 메모리의 카테고리·태그 사전 벡터, 요청의 온보딩·기억 ¹ | taste_profile, idempotency_records | 온보딩 원본, 취향 기억, 이력 |
-| 대체 자리 다시 뽑기(⑨) | taste_profile, book_classes, book_embeddings, v_books, v_book_popularity, 이력 3종 | taste_profile | 없음 |
+| 대체 자리 다시 뽑기(⑨) | taste_profile, book_classes, book_embeddings, v_books, v_book_popularity | taste_profile | 없음 |
 | 쇼핑 에이전트 | 커머스 상태는 tool 조회. 후보 채점(`recommendations.candidates`)은 피드와 같은 taste_profile, book_embeddings, v_books, v_book_popularity, 이력 3종 | idempotency_records | 대화, tool 결과 |
 | 서버 상태 점검 | 구성 요소 상태 | 없음 | 없음 |
 
